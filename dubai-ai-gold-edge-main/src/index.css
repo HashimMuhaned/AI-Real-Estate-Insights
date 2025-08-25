@@ -1,0 +1,173 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Dubai Real Estate Investment Platform Design System */
+
+
+@layer base {
+  :root {
+    /* Primary Dubai Palette */
+    --background: 25 15% 96%;
+    --foreground: 210 80% 8%;
+
+    --card: 25 20% 98%;
+    --card-foreground: 210 80% 8%;
+
+    --popover: 25 20% 98%;
+    --popover-foreground: 210 80% 8%;
+
+    /* Dark blue (Dubai business) */
+    --primary: 210 80% 12%;
+    --primary-foreground: 25 15% 96%;
+
+    /* Sand/beige tones */
+    --secondary: 35 25% 88%;
+    --secondary-foreground: 210 80% 12%;
+
+    /* Muted sand */
+    --muted: 35 20% 92%;
+    --muted-foreground: 210 40% 35%;
+
+    /* Gold accent */
+    --accent: 45 85% 55%;
+    --accent-foreground: 210 80% 12%;
+
+    /* Emerald accent */
+    --emerald: 160 75% 35%;
+    --emerald-foreground: 25 15% 96%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 25 15% 96%;
+
+    --border: 35 15% 85%;
+    --input: 35 15% 85%;
+    --ring: 210 80% 12%;
+
+    /* Custom gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(210 80% 12%), hsl(210 60% 20%));
+    --gradient-secondary: linear-gradient(135deg, hsl(35 25% 88%), hsl(25 20% 92%));
+    --gradient-gold: linear-gradient(135deg, hsl(45 85% 55%), hsl(40 80% 60%));
+    --gradient-hero: linear-gradient(135deg, hsl(210 80% 12% / 0.85), hsl(210 60% 20% / 0.75));
+
+    /* Shadows */
+    --shadow-luxury: 0 10px 40px -10px hsl(210 80% 12% / 0.15);
+    --shadow-gold: 0 8px 30px -8px hsl(45 85% 55% / 0.25);
+    --shadow-emerald: 0 8px 30px -8px hsl(160 75% 35% / 0.25);
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 210 80% 8%;
+    --foreground: 25 15% 96%;
+
+    --card: 210 70% 10%;
+    --card-foreground: 25 15% 96%;
+
+    --popover: 210 70% 10%;
+    --popover-foreground: 25 15% 96%;
+
+    --primary: 25 15% 96%;
+    --primary-foreground: 210 80% 8%;
+
+    --secondary: 210 60% 15%;
+    --secondary-foreground: 25 15% 96%;
+
+    --muted: 210 60% 15%;
+    --muted-foreground: 35 15% 70%;
+
+    --accent: 45 85% 55%;
+    --accent-foreground: 210 80% 8%;
+
+    --emerald: 160 75% 35%;
+    --emerald-foreground: 25 15% 96%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 25 15% 96%;
+
+    --border: 210 60% 15%;
+    --input: 210 60% 15%;
+    --ring: 45 85% 55%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(25 15% 96%), hsl(35 20% 88%));
+    --gradient-secondary: linear-gradient(135deg, hsl(210 60% 15%), hsl(210 50% 20%));
+    --gradient-gold: linear-gradient(135deg, hsl(45 85% 55%), hsl(40 80% 60%));
+    --gradient-hero: linear-gradient(135deg, hsl(210 80% 8% / 0.85), hsl(210 70% 12% / 0.75));
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
+
+@layer components {
+  /* Arabic geometric patterns */
+  .geometric-pattern {
+    background-image: 
+      radial-gradient(circle at 20% 50%, hsl(var(--accent) / 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 50%, hsl(var(--emerald) / 0.1) 0%, transparent 50%);
+  }
+
+  .hero-pattern {
+    background-image: 
+      linear-gradient(30deg, hsl(var(--accent) / 0.05) 12%, transparent 12.5%, transparent 87%, hsl(var(--accent) / 0.05) 87.5%, hsl(var(--accent) / 0.05)),
+      linear-gradient(150deg, hsl(var(--emerald) / 0.05) 12%, transparent 12.5%, transparent 87%, hsl(var(--emerald) / 0.05) 87.5%, hsl(var(--emerald) / 0.05));
+    background-size: 80px 80px;
+  }
+
+  .luxury-card {
+    @apply bg-card border border-border rounded-xl shadow-luxury;
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%);
+  }
+
+  .cta-primary {
+    @apply bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--primary))] text-primary-foreground hover:shadow-luxury;
+    background: var(--gradient-primary);
+  }
+
+  .cta-gold {
+    @apply text-accent-foreground hover:shadow-gold;
+    background: var(--gradient-gold);
+  }
+
+  .cta-emerald {
+    @apply bg-emerald text-emerald-foreground hover:shadow-emerald;
+  }
+}

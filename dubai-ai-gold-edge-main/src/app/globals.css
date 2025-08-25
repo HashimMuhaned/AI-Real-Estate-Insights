@@ -1,0 +1,228 @@
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============ Custom Variables ============ */
+@layer base {
+  :root {
+    /* Colors */
+    --background: 25 15% 96%;
+    --foreground: 210 80% 8%;
+
+    --card: 25 20% 98%;
+    --card-foreground: 210 80% 8%;
+
+    --popover: 25 20% 98%;
+    --popover-foreground: 210 80% 8%;
+
+    --primary: 210 80% 12%;
+    --primary-foreground: 25 15% 96%;
+
+    --secondary: 35 25% 88%;
+    --secondary-foreground: 210 80% 12%;
+
+    --muted: 35 20% 92%;
+    --muted-foreground: 210 40% 35%;
+
+    --accent: 45 85% 55%;
+    --accent-foreground: 210 80% 12%;
+
+    --emerald: 160 75% 35%;
+    --emerald-foreground: 25 15% 96%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 25 15% 96%;
+
+    --border: 35 15% 85%;
+    --input: 35 15% 85%;
+    --ring: 210 80% 12%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(210 80% 12%),
+      hsl(210 60% 20%)
+    );
+    --gradient-secondary: linear-gradient(
+      135deg,
+      hsl(35 25% 88%),
+      hsl(25 20% 92%)
+    );
+    --gradient-gold: linear-gradient(135deg, hsl(45 85% 55%), hsl(40 80% 60%));
+    --gradient-hero: linear-gradient(
+      135deg,
+      hsl(210 80% 12% / 0.85),
+      hsl(210 60% 20% / 0.75)
+    );
+
+    /* Shadows */
+    --shadow-luxury: 0 10px 40px -10px hsl(210 80% 12% / 0.15);
+    --shadow-gold: 0 8px 30px -8px hsl(45 85% 55% / 0.25);
+    --shadow-emerald: 0 8px 30px -8px hsl(160 75% 35% / 0.25);
+
+    /* Typography & Misc */
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 210 80% 8%;
+    --foreground: 25 15% 96%;
+    --card: 210 70% 10%;
+    --card-foreground: 25 15% 96%;
+    --popover: 210 70% 10%;
+    --popover-foreground: 25 15% 96%;
+    --primary: 25 15% 96%;
+    --primary-foreground: 210 80% 8%;
+    --secondary: 210 60% 15%;
+    --secondary-foreground: 25 15% 96%;
+    --muted: 210 60% 15%;
+    --muted-foreground: 35 15% 70%;
+    --accent: 45 85% 55%;
+    --accent-foreground: 210 80% 8%;
+    --emerald: 160 75% 35%;
+    --emerald-foreground: 25 15% 96%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 25 15% 96%;
+    --border: 210 60% 15%;
+    --input: 210 60% 15%;
+    --ring: 45 85% 55%;
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(25 15% 96%),
+      hsl(35 20% 88%)
+    );
+    --gradient-secondary: linear-gradient(
+      135deg,
+      hsl(210 60% 15%),
+      hsl(210 50% 20%)
+    );
+    --gradient-hero: linear-gradient(
+      135deg,
+      hsl(210 80% 8% / 0.85),
+      hsl(210 70% 12% / 0.75)
+    );
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-serif;
+  }
+}
+
+/* ============ Utility Styles ============ */
+@layer components {
+  .main-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  .logo {
+    height: 6em;
+    padding: 1.5em;
+    will-change: filter;
+    transition: filter 300ms;
+  }
+
+  .logo:hover {
+    filter: drop-shadow(0 0 2em #646cffaa);
+  }
+
+  .logo.react:hover {
+    filter: drop-shadow(0 0 2em #61dafbaa);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    a:nth-of-type(2) .logo {
+      animation: logo-spin infinite 20s linear;
+    }
+  }
+
+  @keyframes logo-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .card {
+    padding: 2em;
+  }
+
+  .read-the-docs {
+    color: #888;
+  }
+
+  .geometric-pattern {
+    background-image: radial-gradient(
+        circle at 20% 50%,
+        hsl(var(--accent) / 0.1) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        circle at 80% 50%,
+        hsl(var(--emerald) / 0.1) 0%,
+        transparent 50%
+      );
+  }
+
+  .hero-pattern {
+    background-image: linear-gradient(
+        30deg,
+        hsl(var(--accent) / 0.05) 12%,
+        transparent 12.5%,
+        transparent 87%,
+        hsl(var(--accent) / 0.05) 87.5%,
+        hsl(var(--accent) / 0.05)
+      ),
+      linear-gradient(
+        150deg,
+        hsl(var(--emerald) / 0.05) 12%,
+        transparent 12.5%,
+        transparent 87%,
+        hsl(var(--emerald) / 0.05) 87.5%,
+        hsl(var(--emerald) / 0.05)
+      );
+    background-size: 80px 80px;
+  }
+
+  .luxury-card {
+    @apply bg-card border border-border rounded-xl shadow-luxury;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card)) 0%,
+      hsl(var(--muted)) 100%
+    );
+  }
+
+  .cta-primary {
+    @apply text-primary-foreground hover:shadow-luxury;
+    background: var(--gradient-primary);
+  }
+
+  .cta-gold {
+    @apply text-accent-foreground hover:shadow-gold;
+    background: var(--gradient-gold);
+  }
+
+  .cta-emerald {
+    @apply bg-emerald text-emerald-foreground hover:shadow-emerald;
+  }
+}
