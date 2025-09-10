@@ -11,7 +11,7 @@ export default function ROIGrowthAreasList({
 }) {
   return (
     <InfiniteList<PriceGrowthVacancyRisk>
-      endpoint="http://localhost:8000/api/areas-price-growth-vacancy-risk"
+      endpoint="http://localhost:8080/api/areas-price-growth-vacancy-risk"
       search={search}
     >
       {(allData, lastRef) => {

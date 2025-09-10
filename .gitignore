@@ -1,4 +1,4 @@
-backend/scraper/*
+scraper
 .venv
 .vscode
 .$Dubai Area Insight AI System.drawio.bkp
@@ -7,6 +7,8 @@ Dubai Area Insight AI System.drawio
 __pycache__
 package.json
 package-lock.json
+__init__.py
+app.ipynb
 
 # Logs
 logs
@@ -31,3 +33,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+drizzle
+icon-window.tsx
+.env

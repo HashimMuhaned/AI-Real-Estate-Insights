@@ -10,7 +10,7 @@ export default function RentalYeildsAreasList({
   search: string;
 }) {
   return (
-    <InfiniteList<RentalYield> endpoint="http://localhost:8000/api/areas-rental-yield" search={search}>
+    <InfiniteList<RentalYield> endpoint="http://localhost:8080/api/areas-rental-yield" search={search}>
       {(allData, lastRef) => {
         const uniqueData = Array.from(
           new Map(allData.map((item) => [item.area_id, item])).values()

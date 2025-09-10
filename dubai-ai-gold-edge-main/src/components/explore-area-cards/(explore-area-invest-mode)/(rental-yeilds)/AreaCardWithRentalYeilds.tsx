@@ -12,10 +12,15 @@ type Props = {
   area: RentalYield;
   isLast?: boolean;
   lastRef?: (node?: Element | null) => void;
-  sortOption: any
+  sortOption: any;
 };
 
-const AreaCardWithRentalYeilds = ({ area, isLast, lastRef, sortOption }: Props) => {
+const AreaCardWithRentalYeilds = ({
+  area,
+  isLast,
+  lastRef,
+  sortOption,
+}: Props) => {
   return (
     <Card
       ref={isLast ? lastRef : undefined}
@@ -44,15 +49,23 @@ const AreaCardWithRentalYeilds = ({ area, isLast, lastRef, sortOption }: Props) 
             <span className="text-sm font-medium">Villa Yield</span>
           </div>
           <div className="text-sm">
-            Current: {area.villa_yield_current_year?.toFixed(2) ?? "—"}%
+            Current:{" "}
+            {area.villa_yield_current_year != null
+              ? Number(area.villa_yield_current_year).toFixed(2)
+              : "—"}
+            %
           </div>
           <div className="text-sm">
-            Last Year: {area.villa_yield_last_year?.toFixed(2) ?? "—"}%
+            Last Year:{" "}
+            {area.villa_yield_last_year != null
+              ? Number(area.villa_yield_last_year).toFixed(2)
+              : "—"}
+            %
           </div>
           <div
             className={`text-sm flex items-center gap-1 ${
               area.villa_yield_growth_pct != null
-                ? area.villa_yield_growth_pct < 0
+                ? Number(area.villa_yield_growth_pct) < 0
                   ? "text-red-600"
                   : "text-green-600"
                 : "text-black"
@@ -61,7 +74,7 @@ const AreaCardWithRentalYeilds = ({ area, isLast, lastRef, sortOption }: Props) 
             <TrendingUp className="w-4 h-4" />
             Growth:{" "}
             {area.villa_yield_growth_pct != null
-              ? `${area.villa_yield_growth_pct.toFixed(2)}%`
+              ? `${Number(area.villa_yield_growth_pct).toFixed(2)}%`
               : "—"}
           </div>
         </div>
@@ -73,15 +86,23 @@ const AreaCardWithRentalYeilds = ({ area, isLast, lastRef, sortOption }: Props) 
             <span className="text-sm font-medium">Apartment Yield</span>
           </div>
           <div className="text-sm">
-            Current: {area.apt_yield_current_year?.toFixed(2) ?? "—"}%
+            Current:{" "}
+            {area.apt_yield_current_year != null
+              ? Number(area.apt_yield_current_year).toFixed(2)
+              : "—"}
+            %
           </div>
           <div className="text-sm">
-            Last Year: {area.apt_yield_last_year?.toFixed(2) ?? "—"}%
+            Last Year:{" "}
+            {area.apt_yield_last_year != null
+              ? Number(area.apt_yield_last_year).toFixed(2)
+              : "—"}
+            %
           </div>
           <div
             className={`text-sm flex items-center gap-1 ${
               area.apt_yield_growth_pct != null
-                ? area.apt_yield_growth_pct < 0
+                ? Number(area.apt_yield_growth_pct) < 0
                   ? "text-red-600"
                   : "text-green-600"
                 : "text-black"
@@ -90,7 +111,7 @@ const AreaCardWithRentalYeilds = ({ area, isLast, lastRef, sortOption }: Props) 
             <TrendingUp className="w-4 h-4" />
             Growth:{" "}
             {area.apt_yield_growth_pct != null
-              ? `${area.apt_yield_growth_pct.toFixed(2)}%`
+              ? `${Number(area.apt_yield_growth_pct).toFixed(2)}%`
               : "—"}
           </div>
         </div>

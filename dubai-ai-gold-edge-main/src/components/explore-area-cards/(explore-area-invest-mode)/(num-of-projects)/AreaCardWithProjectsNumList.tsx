@@ -10,7 +10,7 @@ export default function AreasList({
   search: string;
 }) {
   return (
-    <InfiniteList<Area> endpoint="http://localhost:8000/api/areas" search={search}>
+    <InfiniteList<Area> endpoint="http://localhost:8080/api/areas" search={search}>
       {(allData, lastRef) => {
         const sortedData = [...allData].sort((a, b) => {
           switch (filter) {

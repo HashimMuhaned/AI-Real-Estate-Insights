@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
+// import { signIn } from "next-auth/react";
+import AuthButtons from "@/components/auth/AuthButtons";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -65,7 +67,7 @@ const Navbar = () => {
               </a>
             ))}
 
-            <Button className="cta-gold ml-4 px-6">Get Started</Button>
+            <AuthButtons />
           </div>
 
           {/* Mobile Menu Button */}
@@ -98,7 +100,8 @@ const Navbar = () => {
                 </a>
               ))}
               <div className="px-3 py-2">
-                <Button className="cta-gold w-full">Get Started</Button>
+                {/* <Button className="cta-gold w-full">Get Started</Button> */}
+                <AuthButtons />
               </div>
             </div>
           </div>

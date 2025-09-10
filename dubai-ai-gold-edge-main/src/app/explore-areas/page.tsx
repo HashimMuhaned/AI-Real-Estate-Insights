@@ -19,6 +19,8 @@ import AreaCardWithRentalYeildsList from "@/components/explore-area-cards/(explo
 import AreaCardWithROIGrowthList from "@/components/explore-area-cards/(explore-area-invest-mode)/(roi-growth)/AreaCardWithROIGrowthList";
 import AreaCardWithTransactionsList from "@/components/explore-area-cards/(explore-area-invest-mode)/(transactions)/AreaCardWIthTransactionsList";
 
+// import { useChatWidget } from "@/context/ChatWidgetContext";
+
 const investmentData = {
   projectCounts: {
     title: "Avg. prices & rents",
@@ -88,6 +90,7 @@ const AreasPage = () => {
   const [roiFilter, setRoiFilter] = useState("all");
   const [transactionFilter, setTransactionFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  // const { openChat } = useChatWidget();
 
   const handleFilterChange = (value: string) => {
     switch (selectedCard) {
@@ -272,7 +275,10 @@ const AreasPage = () => {
                             <span>ROI projections</span>
                           </div>
                         </div>
-                        <Button className="w-full cta-emerald">
+                        <Button
+                          className="w-full cta-emerald"
+                          // onClick={openChat}
+                        >
                           Get AI Recommendations
                         </Button>
                       </CardContent>

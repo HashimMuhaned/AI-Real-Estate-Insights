@@ -42,6 +42,6 @@
     "**/*.tsx",
     "src",
     "src/react-icons.d.ts"
-  ],
+, "../backend/src/types/areaYeild.ts"  ],
   "exclude": ["node_modules"]
 }

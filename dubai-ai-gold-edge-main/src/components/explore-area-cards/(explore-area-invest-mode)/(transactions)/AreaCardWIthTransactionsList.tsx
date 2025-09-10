@@ -12,7 +12,7 @@ export default function TransactionsAreasList({
 }) {
   return (
     <InfiniteList<TransactionsTotalValue>
-      endpoint="http://localhost:8000/api/areas-transactions-total-value"
+      endpoint="http://localhost:8080/api/areas-transactions-total-value"
       search={search}
     >
       {(allData, lastRef) => {
