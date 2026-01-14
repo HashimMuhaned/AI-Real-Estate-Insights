@@ -171,3 +171,11 @@
     @apply bg-emerald text-emerald-foreground hover:shadow-emerald;
   }
 }
+
+textarea::-webkit-scrollbar {
+  width: 6px;
+}
+textarea::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}

@@ -28,6 +28,8 @@ const Navbar = () => {
     { name: "How It Works", href: "#how-it-works" },
     { name: "Pricing", href: "#pricing" },
     { name: "Explore Areas", href: "/explore-areas" },
+    { name: "Communities", href: "/communities" },
+    { name: "New Projects", href: "/projects" },
     // { name: "Contact", href: "#contact" },
   ];
 
@@ -58,7 +60,7 @@ const Navbar = () => {
                 key={link.name}
                 href={link.href}
                 className={`transition-colors duration-200 font-medium hover:text-accent ${
-                  isScrolled || pathname !== "/"
+                  isScrolled 
                     ? "text-black"
                     : "text-primary-foreground/90"
                 }`}

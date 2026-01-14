@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { Check, Star, Crown, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,8 +28,8 @@ const pricingPlans = [
     name: "Pro",
     icon: Star,
     description: "For serious investors",
-    monthlyPrice: 299,
-    yearlyPrice: 2390,
+    monthlyPrice: 149,
+    yearlyPrice: 1430,
     badge: "Most Popular",
     features: [
       "Access to all Dubai areas",
@@ -50,8 +50,8 @@ const pricingPlans = [
     name: "Investor+",
     icon: Crown,
     description: "For portfolio managers",
-    monthlyPrice: 799,
-    yearlyPrice: 6390,
+    monthlyPrice: 349,
+    yearlyPrice: 3350,
     badge: "Premium",
     features: [
       "Everything in Pro",

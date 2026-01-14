@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import { db } from "@/db"; 
+import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -16,7 +16,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async signIn({ user, account }) {
       if (account?.provider === "google") {
         // check if user exists
-        const existing = await db.select().from(users).where(eq(users.email, user.email!));
+        const existing = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, user.email!));
 
         if (existing.length === 0) {
           // insert into db

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { MapPin, TrendingUp, DollarSign, BarChart3 } from "lucide-react";
 import Link from "next/link";
 import { RentalYield } from "@/types/area";
+import { slugify } from "@/lib/slugify";
 
 type Props = {
   area: RentalYield;
@@ -117,7 +118,7 @@ const AreaCardWithRentalYeilds = ({
         </div>
 
         {/* CTA */}
-        <Link href={`/explore-areas/${area.area_id}`} className="block">
+        <Link href={`/area-insights/${slugify(area.area_name)}`} className="block">
           <Button className="w-full cta-primary group-hover:shadow-gold transition-all">
             View Area Insights
           </Button>

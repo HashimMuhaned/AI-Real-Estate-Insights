@@ -16,7 +16,7 @@ export default function AuthButtons() {
           alt="Profile"
           className="w-8 h-8 rounded-full"
         />
-        <span>{session.user?.name}</span>
+        {/* <span>{session.user?.name}</span> */}
         <Button onClick={() => signOut()}>Sign Out</Button>
       </div>
     );

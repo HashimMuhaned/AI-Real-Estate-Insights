@@ -5,6 +5,8 @@ from langchain_core.tools import tool
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_community.utilities import SQLDatabase
 from sqlalchemy import text
+import os, requests
+from langchain_core.tools import BaseTool
 
 from RAG_config import retriever
 from langchain_openai import ChatOpenAI
@@ -26,7 +28,7 @@ SCHEMA_INFO = target_db.get_table_info()
 
 # Raw engine for DB + web search
 engine = target_db._engine
-_tavily = TavilySearchResults(max_results=2)
+_tavily = TavilySearchResults()
 
 # Use same LLM as graph.py
 llm = ChatOpenAI(
@@ -62,7 +64,7 @@ def web_search(query: str, max_results: int = 5) -> Dict[str, Any]:
 
     raw = _tavily.invoke({"query": query, "max_results": max_results}) or []
 
-    print("=============== tavily result ====================", raw)
+    print("====================== tavily result ====================", raw)
     results: List[Dict[str, str]] = []
     for r in raw if isinstance(raw, list) else []:
         url = r.get("url") or r.get("link")
@@ -148,3 +150,66 @@ def pgsql_query_structured(user_query: str, sample_rows: int = 10) -> Dict[str, 
         "rowcount": rowcount if rowcount is not None else len(rows),
         "elapsed_ms": int((time.perf_counter() - start) * 1000),
     }
+
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+
+@tool("image_search")
+def image_search(query: str, max_results: int = 5) -> Dict[str, Any]:
+    """
+    Contextual image search using Tavily (returns both context and images).
+    """
+    try:
+        resp = requests.post(
+            "https://api.tavily.com/search",
+            json={
+                "api_key": TAVILY_API_KEY,
+                "query": query,
+                "search_depth": "advanced",
+                "include_images": True,
+                "max_results": max_results,
+            },
+            timeout=15,
+        )
+        data = resp.json()
+    except Exception as e:
+        print("Tavily request failed:", e)
+        return {
+            "engine": "tavily",
+            "query": query,
+            "context": [],
+            "images": [],
+        }
+
+    # --- Step 1: Extract context from results ---
+    context = []
+    for r in data.get("results", []):
+        context.append({
+            "title": r.get("title") or "",
+            "snippet": r.get("snippet") or r.get("content") or "",
+        })
+
+    # --- Step 2: Extract images from top-level 'images' array ---
+    image_results = []
+    for img_url in data.get("images", [])[:max_results]:
+        image_results.append({
+            "url": img_url,
+            "title": "",  # optional: could associate with first result title
+            "source": "",  # optional: could associate with first result url
+        })
+
+    print("=================== images ===================", image_results)
+
+    return {
+        "engine": "tavily",
+        "query": query,
+        "context": context[:max_results],
+        "images": image_results[:max_results],
+    }
+
+
+ALL_TOOLS: list[BaseTool] = [
+    rag_tool,
+    web_search,
+    pgsql_query_structured,
+    image_search,
+]

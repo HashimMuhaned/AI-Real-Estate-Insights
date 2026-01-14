@@ -1,4 +1,9 @@
+scraping
 scraper
+normalized_tables_current_schema.txt
+real_estate_backup_$(date +%Y%m%d).dump
+response.html
+db_move_to_neon
 .venv
 .vscode
 .$Dubai Area Insight AI System.drawio.bkp

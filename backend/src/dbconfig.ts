@@ -1,23 +1,27 @@
-// db.js
 import { Pool } from "pg";
+import * as dotenv from "dotenv";
+dotenv.config();
+
+// const pool = new Pool({
+//   connectionString: process.env.NEON_DB_CONNECTION_PRODUCTION,
+// });
 
 const pool = new Pool({
   user: process.env.PGSQL_USER,
-  host: process.env.PGSQL_HOST,
-  database: process.env.PGSQL_DB_NAME,
   password: process.env.PGSQL_PASS,
-  port: 5432,
+  host: process.env.PGSQL_HOST,
+  port: Number(process.env.PGSQL_PORT),
+  database: process.env.PGSQL_DB_NAME,
 });
 
-// Test connection on startup
 pool
   .connect()
-  .then((client: any) => {
-    console.log("Database connected successfully");
+  .then((client) => {
+    console.log(`✅ Connected to Local DB successfully`);
     client.release();
   })
-  .catch((err: any) => {
-    console.error("Database connection failed:", err.message);
+  .catch((err) => {
+    console.error("❌ Database connection failed:", err.message);
   });
 
 export default pool;

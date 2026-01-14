@@ -1,7 +1,15 @@
 import psycopg2
 import os
 
+
 def init_db_connection():
+    print(
+        os.getenv("PGSQL_DB_NAME"),
+        os.getenv("PGSQL_USER"),
+        os.getenv("PGSQL_PASS"),
+        os.getenv("PGSQL_HOST"),
+        os.getenv("PGSQL_PORT"),
+    )
     try:
         conn = psycopg2.connect(
             dbname=os.getenv("PGSQL_DB_NAME"),

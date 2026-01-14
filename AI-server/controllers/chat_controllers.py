@@ -1,6 +1,7 @@
-from fastapi import HTTPException
+from fastapi import Body, HTTPException
 from database import init_db_connection
 from psycopg2.extras import RealDictCursor
+from utils.insights_graph import insight_graph
 
 db = init_db_connection()
 
@@ -25,3 +26,13 @@ def fetch_chat_messages(user_id: str):
         return {"messages": []}
 
     return {"messages": record.get("messages", [])}
+
+
+async def generate_insight(chart_type, context, data_summary, detail_level):
+    result = insight_graph.invoke({
+        "chart_type": chart_type,
+        "context": context,
+        "data_summary": data_summary,
+        "detail_level": detail_level,
+    })
+    return {"insight": result["insight"]}

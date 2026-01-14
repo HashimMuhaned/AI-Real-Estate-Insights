@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { MapPin, DollarSign, Users, Calendar, BarChart3 } from "lucide-react";
 import Link from "next/link";
 import { TransactionsTotalValue } from "@/types/area";
+import { slugify } from "@/lib/slugify";
 
 type TransactionsTotalValueCardProps = {
   area: TransactionsTotalValue;
@@ -156,7 +157,7 @@ const AreaCardWithTransactions = ({
         </div>
 
         {/* CTA */}
-        <Link href={`/explore-areas/`} className="block">
+        <Link href={`/area-insights/${slugify(area.area_name)}`} className="block">
           <Button className="w-full cta-primary group-hover:shadow-gold transition-all">
             View Area Insights
           </Button>

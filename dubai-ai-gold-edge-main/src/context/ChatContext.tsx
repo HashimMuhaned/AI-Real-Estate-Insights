@@ -27,6 +27,7 @@ export const ChatProvider = ({ children }) => {
       axios
         .get(url)
         .then((res) => {
+          console.log(res)
           const filtered = res.data.messages.filter(
             (m: any) => m.role === "ai" || m.role === "user" // show only AI and real user messages
           );
@@ -38,10 +39,12 @@ export const ChatProvider = ({ children }) => {
             isUser: m.role === "user",
             type: "message",
             sources: m.sources?.web?.urls,
-            followup: m.followups || [], 
+            followup: m.followups || [],
+            images: m.images,
           }));
 
           setMessages(loaded);
+          console.log(loaded);
         })
         .catch((err) => {
           console.error("Greeting boot error:", err.message);

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react"; // 👈 import signIn
+import { signIn } from "next-auth/react"; 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ import {
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import dubaiAuthImage from "@/assets/dubai-auth-hero.jpg";
 
 const SignUp = () => {
   const router = useRouter();
@@ -197,11 +198,9 @@ const SignUp = () => {
       <div className="hidden lg:block lg:w-[50%] relative">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-accent/20" />
         <Image
-          src="/dubai-auth-hero.jpg"
+          src={dubaiAuthImage}
           alt="Dubai Real Estate - Luxury Properties and Investment"
           className="w-full h-full object-cover"
-          width={100}
-          height={100}
         />
         <div className="absolute bottom-12 left-12 right-12 text-white">
           <h2 className="text-4xl font-serif font-bold mb-4">
