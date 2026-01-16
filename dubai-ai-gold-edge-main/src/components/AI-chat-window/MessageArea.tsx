@@ -5,36 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Virtuoso } from "react-virtuoso";
 import MarkdownRenderer from "@/helpers/OrgLLMRES";
-
-// ============================================================================
-// TYPES
-// ============================================================================
-interface ChatMsg {
-  id: number | string;
-  content?: string;
-  isUser?: boolean;
-  type?: string;
-  isLoading?: boolean;
-  isStreaming?: boolean;
-  retryInput?: string;
-  searchInfo?: {
-    stages: string[];
-    query: string;
-    urls: string[];
-    error?: string;
-  };
-  sources?: string[];
-  followup?: string[];
-  images?: any[];
-  error?: {
-    code: string;
-    message: string;
-  };
-  [k: string]: any;
-}
+import { type ChatMessage } from "../../context/ChatContext";
 
 interface MessageAreaProps {
-  messages: ChatMsg[];
+  messages: ChatMessage[];
   isMaximized: boolean;
   onSubmit: (msg: string, isRetry?: boolean) => void;
 }
@@ -100,7 +74,7 @@ const SearchStages = memo(({ searchInfo, isMaximized }: any) => {
           </div>
         )}
 
-        {searchInfo.stages.includes("reading") && (
+        {searchInfo.stages?.includes("reading") && (
           <div className="relative">
             <div className="absolute top-[0.2rem] left-[-0.75rem] w-[10px] h-[10px] bg-teal-400 rounded-full z-10 shadow-sm" />
             <div className="ml-2 mb-2 font-medium block">Reading</div>
@@ -128,14 +102,14 @@ const SearchStages = memo(({ searchInfo, isMaximized }: any) => {
           </div>
         )}
 
-        {searchInfo.stages.includes("writing") && (
+        {searchInfo.stages?.includes("writing") && (
           <div className="relative">
             <div className="absolute top-[0.2rem] left-[-0.75rem] w-[10px] h-[10px] bg-teal-400 rounded-full z-10 shadow-sm" />
             <span className="ml-2 mb-2 font-medium block">Writing answer</span>
           </div>
         )}
 
-        {searchInfo.stages.includes("error") && (
+        {searchInfo.stages?.includes("error") && (
           <div className="relative">
             <div className="absolute top-[0.2rem] left-[-0.75rem] w-[10px] h-[10px] bg-red-400 rounded-full z-10 shadow-sm" />
             <span className="ml-2 mb-2 font-medium block">Search error</span>
@@ -229,44 +203,38 @@ ImageModal.displayName = "ImageModal";
 // ============================================================================
 // MESSAGE CONTENT RENDERER
 // ============================================================================
-const MessageContent = memo(
-  ({
-    message,
-    handleMessageClick,
-  }: {
-    message: ChatMsg;
-    handleMessageClick: (e: React.MouseEvent<HTMLDivElement>) => void;
-  }) => {
-    return (
-      <div
-        className="py-4 text-sm text-gray-800 leading-relaxed overflow-x-auto"
-        onClick={handleMessageClick}
-      >
-        {message.isLoading ? (
-          <PremiumTypingAnimation />
-        ) : message.content ? (
-          message.isStreaming ? (
-            <pre className="whitespace-pre-wrap text-sm font-sans text-gray-800 leading-relaxed">
-              {message.content}
-            </pre>
-          ) : (
-            <div className="prose prose-sm max-w-none dark:prose-invert">
-              <MarkdownRenderer text={message.content} />
-            </div>
-          )
+const MessageContent = ({
+  message,
+  handleMessageClick,
+}: {
+  message: ChatMessage;
+  handleMessageClick: (e: React.MouseEvent<HTMLDivElement>) => void;
+}) => {
+  return (
+    <div
+      className="py-4 text-sm text-gray-800 leading-relaxed overflow-x-auto"
+      onClick={handleMessageClick}
+    >
+      {message.isLoading ? (
+        <PremiumTypingAnimation />
+      ) : message.content ? (
+        message.isStreaming ? (
+          <pre className="whitespace-pre-wrap text-sm font-sans text-gray-800 leading-relaxed">
+            {message.content}
+          </pre>
         ) : (
-          <span className="text-gray-400 text-xs italic">
-            Waiting for response...
-          </span>
-        )}
-      </div>
-    );
-  },
-  (prev, next) =>
-    prev.message.content === next.message.content &&
-    prev.message.isLoading === next.message.isLoading &&
-    prev.message.isStreaming === next.message.isStreaming
-);
+          <div className="prose prose-sm max-w-none dark:prose-invert">
+            <MarkdownRenderer text={message.content} />
+          </div>
+        )
+      ) : (
+        <span className="text-gray-400 text-xs italic">
+          Waiting for response...
+        </span>
+      )}
+    </div>
+  );
+};
 
 MessageContent.displayName = "MessageContent";
 
@@ -280,19 +248,19 @@ const MessageBubble = memo(
     onSubmit,
     handleMessageClick,
   }: {
-    message: ChatMsg;
+    message: ChatMessage;
     isMaximized: boolean;
     onSubmit: (msg: string, isRetry?: boolean) => void;
     handleMessageClick: (e: React.MouseEvent<HTMLDivElement>) => void;
   }) => {
-    // 🔥 FIX: Check for error object to determine if this is an error state
-    const hasError = !message.isUser && message.error;
+    // 🔥 FIX: Properly check for error state - ensure error object exists and isLoading is false
+    const hasError = !message.isUser && !!message.error && !message.isLoading;
 
     // Maximized Assistant Message
     if (isMaximized && !message.isUser) {
       return (
         <div className="w-full min-w-0 mb-5">
-          {/* Search Stages */}
+          {/* Search Stages - only show if not in error state */}
           {message.searchInfo && !hasError && (
             <SearchStages
               searchInfo={message.searchInfo}
@@ -300,7 +268,7 @@ const MessageBubble = memo(
             />
           )}
 
-          {/* Main Message Content */}
+          {/* Main Message Content - only show if not in error state */}
           {!hasError && (
             <MessageContent
               message={message}
@@ -308,30 +276,17 @@ const MessageBubble = memo(
             />
           )}
 
-          {/* Error State - 🔥 FIXED LOGIC */}
+          {/* Error State - 🔥 IMPROVED LOGIC */}
           {hasError && (
             <motion.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               className="mt-4 p-4 rounded-xl border border-red-200 bg-red-50"
             >
-              <p className="text-sm font-medium text-red-700">
-                {message.error.code === "CONNECTION_FAILED"
-                  ? "Connection Failed"
-                  : message.error.code === "PARTIAL_RESPONSE"
-                  ? "Connection Lost"
-                  : "Error"}
-              </p>
-              <p className="text-xs text-red-600 mt-2 whitespace-pre-wrap">
-                {message.content || message.error.message}
-              </p>
-              {message.retryInput && (
-                <button
-                  onClick={() => onSubmit(message.retryInput!, true)}
-                  className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors"
-                >
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-0.5">
                   <svg
-                    className="w-3 h-3"
+                    className="w-5 h-5 text-red-500"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -340,12 +295,48 @@ const MessageBubble = memo(
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
-                  Retry
-                </button>
-              )}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-red-700 mb-1">
+                    {message.error.code === "CONNECTION_FAILED"
+                      ? "Connection Failed"
+                      : message.error.code === "PARTIAL_RESPONSE"
+                      ? "Connection Lost"
+                      : message.error.code === "TIMEOUT"
+                      ? "Request Timeout"
+                      : message.error.code === "PARSE_ERROR"
+                      ? "Processing Error"
+                      : "Error Occurred"}
+                  </p>
+                  <p className="text-xs text-red-600 leading-relaxed whitespace-pre-wrap">
+                    {message.content || message.error.message}
+                  </p>
+                  {message.retryInput && (
+                    <button
+                      onClick={() => onSubmit(message.retryInput!, true)}
+                      className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors shadow-sm hover:shadow-md"
+                    >
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        />
+                      </svg>
+                      Try Again
+                    </button>
+                  )}
+                </div>
+              </div>
             </motion.div>
           )}
 
@@ -474,14 +465,33 @@ const MessageBubble = memo(
           >
             {hasError ? (
               <div className="text-red-700">
-                <p className="font-medium text-xs mb-1">
-                  {message.error.code === "CONNECTION_FAILED"
-                    ? "⚠️ Connection Failed"
-                    : message.error.code === "PARTIAL_RESPONSE"
-                    ? "⚠️ Connection Lost"
-                    : "⚠️ Error"}
-                </p>
-                <p className="text-[11px] text-red-600">
+                <div className="flex items-center gap-2 mb-1">
+                  <svg
+                    className="w-3.5 h-3.5 text-red-500 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <p className="font-semibold text-xs">
+                    {message.error.code === "CONNECTION_FAILED"
+                      ? "Connection Failed"
+                      : message.error.code === "PARTIAL_RESPONSE"
+                      ? "Connection Lost"
+                      : message.error.code === "TIMEOUT"
+                      ? "Request Timeout"
+                      : message.error.code === "PARSE_ERROR"
+                      ? "Processing Error"
+                      : "Error"}
+                  </p>
+                </div>
+                <p className="text-[11px] text-red-600 leading-relaxed">
                   {message.content || message.error.message}
                 </p>
                 {message.retryInput && (
@@ -490,9 +500,22 @@ const MessageBubble = memo(
                       e.stopPropagation();
                       onSubmit(message.retryInput!, true);
                     }}
-                    className="mt-2 inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-red-600 text-white hover:bg-red-700 transition-colors"
+                    className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[10px] font-medium bg-red-600 text-white hover:bg-red-700 transition-colors shadow-sm"
                   >
-                    Retry
+                    <svg
+                      className="w-2.5 h-2.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                      />
+                    </svg>
+                    Try Again
                   </button>
                 )}
               </div>

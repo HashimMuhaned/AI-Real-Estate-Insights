@@ -1,57 +1,118 @@
 "use client";
 
-// context/ChatContext.js
+// context/ChatContext.tsx
 import { createContext, useContext, useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import axios from "axios";
 
+export type ChatMessage = {
+  id: number | string;
+  content?: string;
+  isUser?: boolean;
+  type?: string;
+  isLoading?: boolean;
+
+  isStreaming?: boolean;
+  retryInput?: string;
+
+  searchInfo?: {
+    stage?: string;
+    stages?: string[];
+    query?: string;
+    urls?: string[];
+    error?: string;
+  };
+
+  toolResults?: {
+    db?: any; // 👈 DB query results
+    web?: any; // future
+    charts?: any;
+  };
+
+  sources?: string[];
+  followup?: string[];
+  images?: any[];
+
+  error?: {
+    code: string;
+    message: string;
+  };
+};
+
 type ChatContextType = {
-  messages: any[];
-  setMessages: React.Dispatch<React.SetStateAction<any[]>>;
+  messages: ChatMessage[];
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   loading: boolean;
   error: string | null;
 };
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
-export const ChatProvider = ({ children }) => {
-  const [messages, setMessages] = useState([]);
+export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const { data: session, status } = useSession();
 
   useEffect(() => {
-    if (messages.length === 0) {
-      const url = `http://localhost:8000/chat_boot?user_id=${session?.user?.id}&fname=${session?.user?.name}`;
+    // Only load messages once when session is ready and messages are empty
+    if (
+      status === "authenticated" &&
+      messages.length === 0 &&
+      session?.user?.id
+    ) {
+      setLoading(true);
+      const url = `http://localhost:8000/chat_boot?user_id=${session.user.id}&fname=${session.user.name}`;
 
       axios
         .get(url)
         .then((res) => {
-          console.log(res)
+          console.log("Chat history loaded:", res.data);
+
+          // Filter to show only AI and user messages (exclude system messages)
           const filtered = res.data.messages.filter(
-            (m: any) => m.role === "ai" || m.role === "user" // show only AI and real user messages
+            (m: any) => m.role === "ai" || m.role === "user"
           );
 
-          // Map to your frontend format, but exclude system and fake user messages
-          const loaded = filtered.map((m: any, i: any) => ({
-            id: i,
+          // Map to frontend format with all necessary fields
+          const loaded: ChatMessage[] = filtered.map((m: any, i: number) => ({
+            id: m.id || `history-${i}`,
             content: m.content,
             isUser: m.role === "user",
             type: "message",
-            sources: m.sources?.web?.urls,
+            isLoading: false,
+            retryInput: m.role === "user" ? m.content : "", // Store user input for potential retry
+            sources: m.sources?.web?.urls || [],
             followup: m.followups || [],
-            images: m.images,
+            images: m.images || [],
+            searchInfo: m.sources?.web
+              ? {
+                  stages: ["reading"],
+                  query: "",
+                  urls: m.sources.web.urls || [],
+                }
+              : undefined,
+            // Preserve error information if it exists
+            error: m.error
+              ? {
+                  code: m.error.code || "UNKNOWN_ERROR",
+                  message: m.error.message || "An error occurred",
+                }
+              : undefined,
           }));
 
           setMessages(loaded);
-          console.log(loaded);
+          console.log("Loaded messages:", loaded);
         })
         .catch((err) => {
-          console.error("Greeting boot error:", err.message);
-          setError("Failed to greet or load history.");
+          console.error("Failed to load chat history:", err.message);
+          setError("Failed to load chat history.");
+        })
+        .finally(() => {
+          setLoading(false);
         });
     }
-  }, [session]);
+  }, [session, status, messages.length]);
 
   return (
     <ChatContext.Provider

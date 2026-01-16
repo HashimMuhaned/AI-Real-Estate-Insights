@@ -5,31 +5,9 @@ import MessageArea from "../AI-chat-window/MessageArea";
 import React, { useState, useRef } from "react";
 import { TbMessageChatbot } from "react-icons/tb";
 import { useSession } from "next-auth/react";
-import { useChat } from "../../context/ChatContext";
+import { useChat, type ChatMessage } from "../../context/ChatContext";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-
-type ChatMsg = {
-  id: number | string;
-  content?: string;
-  isUser?: boolean;
-  type?: string;
-  isLoading?: boolean;
-  retryInput: string;
-  searchInfo?: {
-    stages: string[];
-    query: string;
-    urls: string[];
-    error?: string;
-  };
-  images?: any[];
-  followup?: string[] | string;
-  error?: {
-    code: string;
-    message: string;
-  };
-  [k: string]: any;
-};
 
 const ChatMainHome = () => {
   const [isMaximized, setIsMaximized] = useState(false);
@@ -44,7 +22,7 @@ const ChatMainHome = () => {
   const pendingInputRef = useRef<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectAttemptsRef = useRef<number>(0);
-  const isRetryingRef = useRef<boolean>(false); // 🔥 NEW: Prevent duplicate retries
+  const isRetryingRef = useRef<boolean>(false);
 
   const makeId = () => `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 
@@ -64,29 +42,53 @@ const ChatMainHome = () => {
     return maybe;
   };
 
-  const mergeMessageUpdate = (id: string | number, patch: Partial<ChatMsg>) => {
-    setMessages((prev: ChatMsg[]) =>
+  const failMessage = (
+    id: string | number,
+    message: string,
+    error?: { code: string; message: string }
+  ) => {
+    // CRITICAL FIX: Ensure isLoading is ALWAYS set to false
+    setMessages((prev) =>
       prev.map((m) =>
         m.id === id
           ? {
               ...m,
+              content: message || "⚠️ An unexpected error occurred.",
+              isLoading: false, // <-- This must be false
+              error,
+            }
+          : m
+      )
+    );
+  };
+
+  const mergeMessageUpdate = (
+    id: string | number,
+    patch: Partial<ChatMessage>
+  ) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === id
+          ? {
+              ...m,
+              ...patch,
+
               content:
-                patch.content !== undefined ? patch.content : m.content || "",
+                patch.content !== undefined ? patch.content : m.content ?? "",
+
               isLoading:
                 patch.isLoading !== undefined ? patch.isLoading : !!m.isLoading,
+
               searchInfo:
                 patch.searchInfo !== undefined
                   ? { ...(m.searchInfo || {}), ...(patch.searchInfo || {}) }
                   : m.searchInfo,
+
               images:
-                patch.images !== undefined
-                  ? patch.images
-                  : m.images !== undefined
-                  ? m.images
-                  : [],
+                patch.images !== undefined ? patch.images : m.images ?? [],
+
               followup:
                 patch.followup !== undefined ? patch.followup : m.followup,
-              ...patch,
             }
           : m
       )
@@ -105,11 +107,11 @@ const ChatMainHome = () => {
       setCurrentMessage("");
     }
 
-    // 🔥 NEW: Only create user message if this is NOT a retry
+    // Only create user message if this is NOT a retry
     if (!isRetry) {
       const newMessageId = makeId();
 
-      setMessages((prev: ChatMsg[]) => [
+      setMessages((prev: ChatMessage[]) => [
         ...prev,
         {
           id: newMessageId,
@@ -123,10 +125,9 @@ const ChatMainHome = () => {
 
     const aiResponseId = makeId();
 
-    // 🔥 NEW: If retry, remove the old AI message first
+    // If retry, remove the old AI message first
     if (isRetry) {
-      setMessages((prev: ChatMsg[]) => {
-        // Remove the last AI message (the failed one)
+      setMessages((prev: ChatMessage[]) => {
         const filtered = [...prev];
         for (let i = filtered.length - 1; i >= 0; i--) {
           if (!filtered[i].isUser) {
@@ -138,7 +139,7 @@ const ChatMainHome = () => {
       });
     }
 
-    setMessages((prev: ChatMsg[]) => [
+    setMessages((prev: ChatMessage[]) => [
       ...prev,
       {
         id: aiResponseId,
@@ -183,24 +184,14 @@ const ChatMainHome = () => {
       eventSourceRef.current = eventSource;
     } catch (err) {
       console.error("Failed to create EventSource:", err);
-      mergeMessageUpdate(aiResponseId, {
-        content: "Sorry, there was an error connecting to the server.",
-        isLoading: false,
-        error: {
-          code: "CONNECTION_FAILED",
-          message: "Failed to create EventSource connection.",
-        },
+      failMessage(aiResponseId, "⚠️ Unable to connect to the server.", {
+        code: "CONNECTION_FAILED",
+        message: "Failed to create EventSource connection.",
       });
+
       pendingInputRef.current = null;
       return;
     }
-
-    const watchdogTimeout = setTimeout(() => {
-      if (!sawAnyData && !isCleanedUp) {
-        console.warn("SSE watchdog triggered — no data received");
-        eventSource.onerror?.(new Event("watchdog-timeout"));
-      }
-    }, 2000); // ⏱️ 2 seconds
 
     let streamedContent = "";
     let searchData: any = null;
@@ -208,25 +199,41 @@ const ChatMainHome = () => {
     let backendErrorReceived = false;
     let isCleanedUp = false;
 
-    // 🔥 NEW: Add a global timeout to prevent infinite hanging
+    // Watchdog timeout to detect silent failures
+    const watchdogTimeout = setTimeout(() => {
+      if (!sawAnyData && !isCleanedUp) {
+        console.warn("SSE watchdog triggered — no data received within 5s");
+
+        // FIX: Use failMessage to ensure isLoading = false
+        failMessage(aiResponseId, "⚠️ No response from server. Please try again.", {
+          code: "TIMEOUT",
+          message: "No data received from server.",
+        });
+
+        if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
+          eventSource.close();
+        }
+        cleanup();
+      }
+    }, 5000); // 5 seconds watchdog
+
+    // Global timeout to prevent requests hanging forever
     const globalTimeout = setTimeout(() => {
       if (!isCleanedUp) {
         console.error("Global timeout reached - forcing cleanup");
 
         if (!backendErrorReceived) {
-          const errorMsg = streamedContent
-            ? streamedContent +
-              "\n\n⚠️ Request timeout. The response took too long to complete."
-            : "⚠️ Request timeout. The server is taking too long to respond. Please try again.";
-
-          mergeMessageUpdate(aiResponseId, {
-            content: errorMsg,
-            isLoading: false,
-            error: {
+          failMessage(
+            aiResponseId,
+            streamedContent
+              ? streamedContent +
+                  "\n\n⚠️ Request timeout. The response took too long."
+              : "⚠️ Request timeout. Please try again.",
+            {
               code: "TIMEOUT",
               message: "Request exceeded maximum time limit.",
-            },
-          });
+            }
+          );
         }
 
         cleanup();
@@ -237,9 +244,8 @@ const ChatMainHome = () => {
       if (isCleanedUp) return;
       isCleanedUp = true;
 
-      clearTimeout(globalTimeout); // 🔥 Clear the global timeout
-
-      clearTimeout(watchdogTimeout); // 🔥 CLEAR WATCHDOG
+      clearTimeout(globalTimeout);
+      clearTimeout(watchdogTimeout);
 
       try {
         if (eventSource) eventSource.close();
@@ -249,40 +255,47 @@ const ChatMainHome = () => {
         eventSourceRef.current = null;
       }
 
-      mergeMessageUpdate(aiResponseId, {
-        isLoading: false,
-      });
+      // FIX: Always ensure isLoading is false during cleanup
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === aiResponseId
+            ? {
+                ...m,
+                isLoading: false,
+              }
+            : m
+        )
+      );
 
       pendingInputRef.current = null;
       isRetryingRef.current = false;
     };
 
     eventSource.onmessage = (ev: MessageEvent) => {
-      sawAnyData = true;
       if (!sawAnyData) {
         sawAnyData = true;
-        clearTimeout(watchdogTimeout); // 🔥 CLEAR WATCHDOG
+        clearTimeout(watchdogTimeout);
       }
+
       try {
         const parsed = JSON.parse(ev.data);
         const type = parsed.type;
 
         if (type === "error") {
           backendErrorReceived = true;
-          const message =
+
+          const msg =
             parsed.message ||
             "Something went wrong while generating the response.";
 
-          mergeMessageUpdate(aiResponseId, {
-            content: streamedContent
-              ? streamedContent + "\n\n⚠️ " + message
-              : "⚠️ " + message,
-            isLoading: false,
-            error: {
+          failMessage(
+            aiResponseId,
+            streamedContent ? streamedContent + "\n\n⚠️ " + msg : "⚠️ " + msg,
+            {
               code: parsed.code ?? "STREAM_ERROR",
-              message,
-            },
-          });
+              message: msg,
+            }
+          );
 
           cleanup();
           return;
@@ -290,7 +303,9 @@ const ChatMainHome = () => {
 
         if (type === "stage") {
           mergeMessageUpdate(aiResponseId, {
-            stage: parsed.stage,
+            searchInfo: {
+              stage: parsed.stage,
+            },
             isLoading: parsed.stage !== "writing",
           });
           return;
@@ -413,10 +428,14 @@ const ChatMainHome = () => {
 
         if (type === "query_db_results" || type === "db_results") {
           const payload = parsed.payload ?? parsed;
+
           mergeMessageUpdate(aiResponseId, {
-            dbResults: payload,
+            toolResults: {
+              db: payload,
+            },
             content: streamedContent || "",
           });
+
           return;
         }
 
@@ -450,53 +469,62 @@ const ChatMainHome = () => {
         }
       } catch (err) {
         console.error("Error parsing SSE message:", err, ev.data);
+        // FIX: Show error to user instead of silently failing
+        failMessage(
+          aiResponseId,
+          "⚠️ Error processing server response.",
+          {
+            code: "PARSE_ERROR",
+            message: "Failed to parse server message.",
+          }
+        );
+        cleanup();
       }
     };
 
     eventSource.onerror = () => {
       console.error("EventSource transport error");
 
-      // ─────────────────────────────────────────────
-      // 1. HARD STOPS (nothing else should run)
-      // ─────────────────────────────────────────────
-      if (isCleanedUp) return;
+      // HARD STOPS - nothing else should run after these
+      if (isCleanedUp) {
+        console.log("Already cleaned up, ignoring onerror");
+        return;
+      }
 
       if (backendErrorReceived) {
+        console.log("Backend already sent error, skipping retry logic");
         cleanup();
         return;
       }
 
       if (isRetryingRef.current) {
-        // 🔥 Prevent recursive retry submission (developer note)
+        console.log("Already retrying, ignoring duplicate onerror");
         cleanup();
         return;
       }
 
-      // ─────────────────────────────────────────────
-      // 2. FAIL FAST UI UPDATE (immediate feedback)
-      // ─────────────────────────────────────────────
+      // Check connection state
       const noDataAtAll = !sawAnyData && !streamedContent;
       const partialData = sawAnyData && streamedContent;
 
-      // Show provisional error immediately
-      if (noDataAtAll) {
-        mergeMessageUpdate(aiResponseId, {
-          content: "⚠️ Connection lost. Attempting one retry...",
-          isLoading: false,
-        });
-      }
-
-      // ─────────────────────────────────────────────
-      // 3. ONE-TIME RETRY LOGIC
-      // ─────────────────────────────────────────────
+      // ONE-TIME RETRY LOGIC
       const canRetry =
         !isRetry &&
         reconnectAttemptsRef.current === 0 &&
-        pendingInputRef.current;
+        pendingInputRef.current &&
+        noDataAtAll;
 
       if (canRetry) {
         isRetryingRef.current = true;
         reconnectAttemptsRef.current = 1;
+
+        console.log("Attempting one retry...");
+
+        // Show user we're retrying
+        mergeMessageUpdate(aiResponseId, {
+          content: "⚠️ Connection lost. Retrying...",
+          isLoading: true,
+        });
 
         try {
           eventSource.close();
@@ -506,49 +534,47 @@ const ChatMainHome = () => {
 
         const retryInput = pendingInputRef.current;
 
-        // Retry quickly (UX improvement)
         setTimeout(() => {
-          if (!retryInput) return;
-
-          handleSubmit(retryInput, true);
+          if (retryInput) {
+            handleSubmit(retryInput, true);
+          }
         }, 300);
 
         return;
       }
 
-      // ─────────────────────────────────────────────
-      // 4. FINAL ERROR STATE (NO MORE RETRIES)
-      // ─────────────────────────────────────────────
+      // FINAL ERROR STATE - No more retries
+      console.log(
+        `Showing final error. Retry: ${isRetry}, Attempts: ${reconnectAttemptsRef.current}`
+      );
+
       if (partialData) {
-        mergeMessageUpdate(aiResponseId, {
-          content:
-            streamedContent +
-            "\n\n⚠️ Connection lost before completion. Partial response shown.",
-          isLoading: false,
-          error: {
+        failMessage(
+          aiResponseId,
+          streamedContent + "\n\n⚠️ Connection lost before completion.",
+          {
             code: "PARTIAL_RESPONSE",
             message: "Connection lost mid-stream.",
-          },
-        });
+          }
+        );
       } else {
-        mergeMessageUpdate(aiResponseId, {
-          content:
-            "⚠️ Unable to connect to the server. Please try again in a moment.",
-          isLoading: false,
-          error: {
+        failMessage(
+          aiResponseId,
+          reconnectAttemptsRef.current > 0
+            ? "⚠️ Unable to connect after retry. Please try again."
+            : "⚠️ Unable to connect to the server.",
+          {
             code: "CONNECTION_FAILED",
             message: "Failed to establish SSE connection.",
-          },
-        });
+          }
+        );
       }
 
       cleanup();
     };
 
     eventSource.addEventListener("end", () => {
-      try {
-        if (eventSource) eventSource.close();
-      } catch {}
+      cleanup(); // FIX: Call cleanup to ensure state is updated
     });
   };
 
