@@ -15,7 +15,7 @@ interface ChatMsg {
   isUser?: boolean;
   type?: string;
   isLoading?: boolean;
-  isStreaming?: boolean; // 🔥 NEW: Track if message is actively streaming
+  isStreaming?: boolean;
   retryInput?: string;
   searchInfo?: {
     stages: string[];
@@ -26,13 +26,17 @@ interface ChatMsg {
   sources?: string[];
   followup?: string[];
   images?: any[];
+  error?: {
+    code: string;
+    message: string;
+  };
   [k: string]: any;
 }
 
 interface MessageAreaProps {
   messages: ChatMsg[];
   isMaximized: boolean;
-  onSubmit: (msg: string) => void;
+  onSubmit: (msg: string, isRetry?: boolean) => void;
 }
 
 // ============================================================================
@@ -66,7 +70,6 @@ const SearchStages = memo(({ searchInfo, isMaximized }: any) => {
   return (
     <div className="relative mt-1 mb-3">
       <div className="flex flex-col gap-1 text-sm text-gray-700">
-        {/* Searching Stage */}
         {searchInfo.stages.includes("searching") && (
           <div className="relative">
             <div className="absolute top-[0.2rem] left-[-0.75rem] w-[10px] h-[10px] bg-teal-400 rounded-full z-10 shadow-sm" />
@@ -97,7 +100,6 @@ const SearchStages = memo(({ searchInfo, isMaximized }: any) => {
           </div>
         )}
 
-        {/* Reading Stage */}
         {searchInfo.stages.includes("reading") && (
           <div className="relative">
             <div className="absolute top-[0.2rem] left-[-0.75rem] w-[10px] h-[10px] bg-teal-400 rounded-full z-10 shadow-sm" />
@@ -126,7 +128,6 @@ const SearchStages = memo(({ searchInfo, isMaximized }: any) => {
           </div>
         )}
 
-        {/* Writing Stage */}
         {searchInfo.stages.includes("writing") && (
           <div className="relative">
             <div className="absolute top-[0.2rem] left-[-0.75rem] w-[10px] h-[10px] bg-teal-400 rounded-full z-10 shadow-sm" />
@@ -134,7 +135,6 @@ const SearchStages = memo(({ searchInfo, isMaximized }: any) => {
           </div>
         )}
 
-        {/* Error Stage */}
         {searchInfo.stages.includes("error") && (
           <div className="relative">
             <div className="absolute top-[0.2rem] left-[-0.75rem] w-[10px] h-[10px] bg-red-400 rounded-full z-10 shadow-sm" />
@@ -227,9 +227,8 @@ const ImageModal = memo(
 ImageModal.displayName = "ImageModal";
 
 // ============================================================================
-// MESSAGE CONTENT RENDERER - OPTIMIZED FOR STREAMING
+// MESSAGE CONTENT RENDERER
 // ============================================================================
-// 🔥 This component handles the critical streaming optimization
 const MessageContent = memo(
   ({
     message,
@@ -246,14 +245,11 @@ const MessageContent = memo(
         {message.isLoading ? (
           <PremiumTypingAnimation />
         ) : message.content ? (
-          // 🚀 CRITICAL OPTIMIZATION: Only render Markdown when streaming ends
           message.isStreaming ? (
-            /* ⚡ FAST: Plain text while streaming - 70-80% CPU reduction */
             <pre className="whitespace-pre-wrap text-sm font-sans text-gray-800 leading-relaxed">
               {message.content}
             </pre>
           ) : (
-            /* 🧠 MARKDOWN: Only after streaming completes */
             <div className="prose prose-sm max-w-none dark:prose-invert">
               <MarkdownRenderer text={message.content} />
             </div>
@@ -266,7 +262,6 @@ const MessageContent = memo(
       </div>
     );
   },
-  // Only re-render if content, isLoading, or isStreaming changes
   (prev, next) =>
     prev.message.content === next.message.content &&
     prev.message.isLoading === next.message.isLoading &&
@@ -276,7 +271,7 @@ const MessageContent = memo(
 MessageContent.displayName = "MessageContent";
 
 // ============================================================================
-// MESSAGE BUBBLE - OPTIMIZED WITH MEMO
+// MESSAGE BUBBLE
 // ============================================================================
 const MessageBubble = memo(
   ({
@@ -287,52 +282,67 @@ const MessageBubble = memo(
   }: {
     message: ChatMsg;
     isMaximized: boolean;
-    onSubmit: (msg: string) => void;
+    onSubmit: (msg: string, isRetry?: boolean) => void;
     handleMessageClick: (e: React.MouseEvent<HTMLDivElement>) => void;
   }) => {
-    const isError =
-      !message.isUser &&
-      !message.isLoading &&
-      !message.content &&
-      message.searchInfo?.stages?.includes("error");
+    // 🔥 FIX: Check for error object to determine if this is an error state
+    const hasError = !message.isUser && message.error;
 
     // Maximized Assistant Message
     if (isMaximized && !message.isUser) {
       return (
         <div className="w-full min-w-0 mb-5">
           {/* Search Stages */}
-          {message.searchInfo && (
+          {message.searchInfo && !hasError && (
             <SearchStages
               searchInfo={message.searchInfo}
               isMaximized={isMaximized}
             />
           )}
 
-          {/* Main Message Content - OPTIMIZED */}
-          <MessageContent
-            message={message}
-            handleMessageClick={handleMessageClick}
-          />
+          {/* Main Message Content */}
+          {!hasError && (
+            <MessageContent
+              message={message}
+              handleMessageClick={handleMessageClick}
+            />
+          )}
 
-          {/* Error State */}
-          {isError && (
+          {/* Error State - 🔥 FIXED LOGIC */}
+          {hasError && (
             <motion.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               className="mt-4 p-4 rounded-xl border border-red-200 bg-red-50"
             >
               <p className="text-sm font-medium text-red-700">
-                Something went wrong while generating this response.
+                {message.error.code === "CONNECTION_FAILED"
+                  ? "Connection Failed"
+                  : message.error.code === "PARTIAL_RESPONSE"
+                  ? "Connection Lost"
+                  : "Error"}
               </p>
-              <p className="text-xs text-red-500 mt-1">
-                {message.searchInfo?.error ||
-                  "The model failed to complete the response."}
+              <p className="text-xs text-red-600 mt-2 whitespace-pre-wrap">
+                {message.content || message.error.message}
               </p>
               {message.retryInput && (
                 <button
-                  onClick={() => onSubmit(message.retryInput!)}
+                  onClick={() => onSubmit(message.retryInput!, true)}
                   className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors"
                 >
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
                   Retry
                 </button>
               )}
@@ -340,7 +350,7 @@ const MessageBubble = memo(
           )}
 
           {/* Sources */}
-          {message.sources && message.sources.length > 0 && (
+          {!hasError && message.sources && message.sources.length > 0 && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex items-center gap-2 mb-3">
                 <svg
@@ -382,7 +392,7 @@ const MessageBubble = memo(
           )}
 
           {/* Follow-up Questions */}
-          {message.followup && message.followup.length > 0 && (
+          {!hasError && message.followup && message.followup.length > 0 && (
             <div className="mt-6 pt-4 border-t border-gray-100">
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-purple-100 to-blue-100">
@@ -448,6 +458,8 @@ const MessageBubble = memo(
             className={`rounded-2xl px-4 py-2 text-[13px] leading-relaxed shadow-sm overflow-x-auto max-w-full ${
               message.isUser
                 ? "text-white self-end"
+                : hasError
+                ? "bg-red-50 border border-red-200 text-gray-800 self-start"
                 : "bg-gray-100 text-gray-800 self-start"
             }`}
             style={
@@ -460,10 +472,33 @@ const MessageBubble = memo(
             }
             onClick={handleMessageClick}
           >
-            {message.isLoading ? (
+            {hasError ? (
+              <div className="text-red-700">
+                <p className="font-medium text-xs mb-1">
+                  {message.error.code === "CONNECTION_FAILED"
+                    ? "⚠️ Connection Failed"
+                    : message.error.code === "PARTIAL_RESPONSE"
+                    ? "⚠️ Connection Lost"
+                    : "⚠️ Error"}
+                </p>
+                <p className="text-[11px] text-red-600">
+                  {message.content || message.error.message}
+                </p>
+                {message.retryInput && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSubmit(message.retryInput!, true);
+                    }}
+                    className="mt-2 inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-red-600 text-white hover:bg-red-700 transition-colors"
+                  >
+                    Retry
+                  </button>
+                )}
+              </div>
+            ) : message.isLoading ? (
               <PremiumTypingAnimation />
             ) : message.content ? (
-              // 🚀 SAME OPTIMIZATION for minimized mode
               message.isStreaming ? (
                 <pre className="whitespace-pre-wrap text-[13px] font-sans">
                   {message.content}
@@ -481,29 +516,33 @@ const MessageBubble = memo(
           </div>
 
           {/* Sources (Minimized) */}
-          {!message.isUser && message.sources && message.sources.length > 0 && (
-            <div className="mt-3 ml-2 border-l-2 border-gray-200 pl-3">
-              <p className="text-xs font-medium text-gray-600 mb-2">
-                Sources ({message.sources.length})
-              </p>
-              <div className="space-y-1 overflow-x-auto">
-                {message.sources.map((source, idx) => (
-                  <Link
-                    key={idx}
-                    href={source}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block text-[11px] text-blue-600 hover:text-blue-800 truncate hover:underline"
-                  >
-                    {source}
-                  </Link>
-                ))}
+          {!message.isUser &&
+            !hasError &&
+            message.sources &&
+            message.sources.length > 0 && (
+              <div className="mt-3 ml-2 border-l-2 border-gray-200 pl-3">
+                <p className="text-xs font-medium text-gray-600 mb-2">
+                  Sources ({message.sources.length})
+                </p>
+                <div className="space-y-1 overflow-x-auto">
+                  {message.sources.map((source, idx) => (
+                    <Link
+                      key={idx}
+                      href={source}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-[11px] text-blue-600 hover:text-blue-800 truncate hover:underline"
+                    >
+                      {source}
+                    </Link>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Follow-up (Minimized) */}
           {!message.isUser &&
+            !hasError &&
             message.followup &&
             message.followup.length > 0 && (
               <div className="mt-3 ml-2 border-l-2 border-gray-100 pl-3">
@@ -527,7 +566,6 @@ const MessageBubble = memo(
       </div>
     );
   },
-  // Custom comparison function - only re-render if these properties change
   (prevProps, nextProps) => {
     return (
       prevProps.message.id === nextProps.message.id &&
@@ -535,6 +573,8 @@ const MessageBubble = memo(
       prevProps.message.isLoading === nextProps.message.isLoading &&
       prevProps.message.isStreaming === nextProps.message.isStreaming &&
       prevProps.isMaximized === nextProps.isMaximized &&
+      JSON.stringify(prevProps.message.error) ===
+        JSON.stringify(nextProps.message.error) &&
       JSON.stringify(prevProps.message.sources) ===
         JSON.stringify(nextProps.message.sources) &&
       JSON.stringify(prevProps.message.followup) ===
@@ -546,7 +586,7 @@ const MessageBubble = memo(
 MessageBubble.displayName = "MessageBubble";
 
 // ============================================================================
-// MAIN MESSAGE AREA - OPTIMIZED WITH VIRTUALIZATION
+// MAIN MESSAGE AREA
 // ============================================================================
 const MessageArea = ({ messages, isMaximized, onSubmit }: MessageAreaProps) => {
   const [modalState, setModalState] = useState({
@@ -555,10 +595,8 @@ const MessageArea = ({ messages, isMaximized, onSubmit }: MessageAreaProps) => {
     currentIndex: 0,
   });
 
-  // Debounced scroll is handled by Virtuoso's followOutput
   const virtuosoRef = useRef<any>(null);
 
-  // Handle image clicks
   const handleMessageClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       const target = e.target as HTMLElement;
@@ -597,8 +635,6 @@ const MessageArea = ({ messages, isMaximized, onSubmit }: MessageAreaProps) => {
     setModalState({ isOpen: false, images: [], currentIndex: 0 });
   }, []);
 
-  // For conversations with < 50 messages, use regular rendering
-  // For 50+ messages, use virtualization
   const useVirtualization = messages.length >= 50;
 
   return (
@@ -609,7 +645,6 @@ const MessageArea = ({ messages, isMaximized, onSubmit }: MessageAreaProps) => {
         }`}
       >
         {useVirtualization ? (
-          // VIRTUALIZED LIST for large conversations
           <Virtuoso
             ref={virtuosoRef}
             data={messages}
@@ -626,7 +661,6 @@ const MessageArea = ({ messages, isMaximized, onSubmit }: MessageAreaProps) => {
             )}
           />
         ) : (
-          // REGULAR RENDERING for small conversations
           <div
             className={`mx-auto p-6 ${isMaximized ? "max-w-4xl" : "max-w-7xl"}`}
           >
@@ -643,7 +677,6 @@ const MessageArea = ({ messages, isMaximized, onSubmit }: MessageAreaProps) => {
         )}
       </div>
 
-      {/* Image Modal */}
       <AnimatePresence>
         {modalState.isOpen && (
           <ImageModal

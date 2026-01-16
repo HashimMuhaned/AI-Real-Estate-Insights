@@ -28,7 +28,7 @@ export default function CommunitiesPage() {
   const [aiQuery, setAiQuery] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/getCommunities")
+    fetch("/api/getCommunities")
       .then((res) => res.json())
       .then((data) => setCommunities(data))
       .finally(() => setLoading(false));

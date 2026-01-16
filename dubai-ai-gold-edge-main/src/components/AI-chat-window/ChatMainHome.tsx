@@ -2,9 +2,8 @@
 
 import InputBar from "../AI-chat-window/ChatInput";
 import MessageArea from "../AI-chat-window/MessageArea";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { TbMessageChatbot } from "react-icons/tb";
-// import { CheckUserContext } from "../../context/CheckUserToken";
 import { useSession } from "next-auth/react";
 import { useChat } from "../../context/ChatContext";
 import { Maximize2, Minimize2 } from "lucide-react";
@@ -23,77 +22,39 @@ type ChatMsg = {
     urls: string[];
     error?: string;
   };
-  images?: any[]; // image objects or urls
+  images?: any[];
   followup?: string[] | string;
+  error?: {
+    code: string;
+    message: string;
+  };
   [k: string]: any;
 };
-
-// const LOCAL_STORAGE_KEY = "chat_messages_v1";
 
 const ChatMainHome = () => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-
-  // Chat context
   const { messages, setMessages } = useChat();
-
   const [currentMessage, setCurrentMessage] = useState("");
-
-  // Checkpoint ID returned by backend
   const [checkpointId, setCheckpointId] = useState<string | null>(null);
 
   const { data: session } = useSession();
   const userId = session?.user?.id;
 
-  // Keep a ref for the last submitted userInput (for reconnects)
   const pendingInputRef = useRef<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectAttemptsRef = useRef<number>(0);
+  const isRetryingRef = useRef<boolean>(false); // 🔥 NEW: Prevent duplicate retries
 
-  // // Restore messages from localStorage on mount (if your useChat doesn't do this already)
-  // useEffect(() => {
-  //   try {
-  //     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-  //     if (raw) {
-  //       const parsed = JSON.parse(raw);
-  //       if (Array.isArray(parsed) && parsed.length > 0) {
-  //         setMessages(parsed);
-  //       }
-  //     }
-  //   } catch (e) {
-  //     console.warn("Failed to restore messages:", e);
-  //   }
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, []);
-
-  // // Persist messages to localStorage whenever they change
-  // useEffect(() => {
-  //   try {
-  //     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(messages || []));
-  //   } catch (e) {
-  //     console.warn("Failed to save messages:", e);
-  //   }
-  // }, [messages]);
-
-  const handleFollowupClick = (follow: string) => {
-    setCurrentMessage(follow);
-    // call handleSubmit with the string version
-    handleSubmit(follow);
-  };
-
-  // Helper to create a robust unique id
   const makeId = () => `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 
-  // Safely parse possibly-stringified JSON fields
   const safeJsonParse = (maybe: any, fallback: any = []) => {
     if (maybe === null || maybe === undefined) return fallback;
     if (typeof maybe === "string") {
       try {
         return JSON.parse(maybe);
       } catch {
-        // try basic JSON-ish (single quotes) — don't overdo it
         try {
-          // eslint-disable-next-line no-eval
           return eval(maybe);
         } catch {
           return fallback;
@@ -109,7 +70,6 @@ const ChatMainHome = () => {
         m.id === id
           ? {
               ...m,
-              // ensure we merge nested objects rather than clobber
               content:
                 patch.content !== undefined ? patch.content : m.content || "",
               isLoading:
@@ -133,9 +93,7 @@ const ChatMainHome = () => {
     );
   };
 
-  let backendErrorReceived = false;
-
-  const handleSubmit = async (eOrMessage: any) => {
+  const handleSubmit = async (eOrMessage: any, isRetry: boolean = false) => {
     let userInput = "";
 
     if (typeof eOrMessage === "string") {
@@ -147,22 +105,38 @@ const ChatMainHome = () => {
       setCurrentMessage("");
     }
 
-    // Use robust id to avoid collisions
-    const newMessageId = makeId();
+    // 🔥 NEW: Only create user message if this is NOT a retry
+    if (!isRetry) {
+      const newMessageId = makeId();
 
-    // Append user message
-    setMessages((prev: ChatMsg[]) => [
-      ...prev,
-      {
-        id: newMessageId,
-        content: userInput,
-        isUser: true,
-        type: "message",
-      },
-    ]);
+      setMessages((prev: ChatMsg[]) => [
+        ...prev,
+        {
+          id: newMessageId,
+          content: userInput,
+          isUser: true,
+          type: "message",
+          retryInput: "",
+        },
+      ]);
+    }
 
-    // Prepare AI placeholder
     const aiResponseId = makeId();
+
+    // 🔥 NEW: If retry, remove the old AI message first
+    if (isRetry) {
+      setMessages((prev: ChatMsg[]) => {
+        // Remove the last AI message (the failed one)
+        const filtered = [...prev];
+        for (let i = filtered.length - 1; i >= 0; i--) {
+          if (!filtered[i].isUser) {
+            filtered.splice(i, 1);
+            break;
+          }
+        }
+        return filtered;
+      });
+    }
 
     setMessages((prev: ChatMsg[]) => [
       ...prev,
@@ -182,11 +156,12 @@ const ChatMainHome = () => {
       },
     ]);
 
-    // Keep track of pending input for reconnect attempts
     pendingInputRef.current = userInput;
-    reconnectAttemptsRef.current = 0;
+    if (!isRetry) {
+      reconnectAttemptsRef.current = 0;
+      isRetryingRef.current = false;
+    }
 
-    // Build SSE URL with query params instead of path param
     const base = "http://localhost:8000";
     const sseUrl = new URL("/chat_stream", base);
     sseUrl.searchParams.append("query", userInput);
@@ -194,7 +169,6 @@ const ChatMainHome = () => {
     if (checkpointId)
       sseUrl.searchParams.append("checkpoint_id", String(checkpointId));
 
-    // close any previous event source
     if (eventSourceRef.current) {
       try {
         eventSourceRef.current.close();
@@ -202,7 +176,6 @@ const ChatMainHome = () => {
       eventSourceRef.current = null;
     }
 
-    // Create EventSource
     let eventSource: EventSource | null = null;
 
     try {
@@ -213,16 +186,61 @@ const ChatMainHome = () => {
       mergeMessageUpdate(aiResponseId, {
         content: "Sorry, there was an error connecting to the server.",
         isLoading: false,
+        error: {
+          code: "CONNECTION_FAILED",
+          message: "Failed to create EventSource connection.",
+        },
       });
+      pendingInputRef.current = null;
       return;
     }
+
+    const watchdogTimeout = setTimeout(() => {
+      if (!sawAnyData && !isCleanedUp) {
+        console.warn("SSE watchdog triggered — no data received");
+        eventSource.onerror?.(new Event("watchdog-timeout"));
+      }
+    }, 2000); // ⏱️ 2 seconds
 
     let streamedContent = "";
     let searchData: any = null;
     let sawAnyData = false;
+    let backendErrorReceived = false;
+    let isCleanedUp = false;
 
-    // Helper to close and cleanup
+    // 🔥 NEW: Add a global timeout to prevent infinite hanging
+    const globalTimeout = setTimeout(() => {
+      if (!isCleanedUp) {
+        console.error("Global timeout reached - forcing cleanup");
+
+        if (!backendErrorReceived) {
+          const errorMsg = streamedContent
+            ? streamedContent +
+              "\n\n⚠️ Request timeout. The response took too long to complete."
+            : "⚠️ Request timeout. The server is taking too long to respond. Please try again.";
+
+          mergeMessageUpdate(aiResponseId, {
+            content: errorMsg,
+            isLoading: false,
+            error: {
+              code: "TIMEOUT",
+              message: "Request exceeded maximum time limit.",
+            },
+          });
+        }
+
+        cleanup();
+      }
+    }, 120000); // 2 minute global timeout
+
     const cleanup = () => {
+      if (isCleanedUp) return;
+      isCleanedUp = true;
+
+      clearTimeout(globalTimeout); // 🔥 Clear the global timeout
+
+      clearTimeout(watchdogTimeout); // 🔥 CLEAR WATCHDOG
+
       try {
         if (eventSource) eventSource.close();
       } catch {}
@@ -234,10 +252,17 @@ const ChatMainHome = () => {
       mergeMessageUpdate(aiResponseId, {
         isLoading: false,
       });
+
+      pendingInputRef.current = null;
+      isRetryingRef.current = false;
     };
 
     eventSource.onmessage = (ev: MessageEvent) => {
       sawAnyData = true;
+      if (!sawAnyData) {
+        sawAnyData = true;
+        clearTimeout(watchdogTimeout); // 🔥 CLEAR WATCHDOG
+      }
       try {
         const parsed = JSON.parse(ev.data);
         const type = parsed.type;
@@ -271,14 +296,12 @@ const ChatMainHome = () => {
           return;
         }
 
-        // Checkpoint
         if (type === "checkpoint") {
           const cp = parsed.checkpoint_id ?? parsed.checkpointId ?? null;
           if (cp) setCheckpointId(cp);
           return;
         }
 
-        // Content streaming
         if (type === "content") {
           const incoming = parsed.content ?? "";
           if (incoming) {
@@ -291,7 +314,6 @@ const ChatMainHome = () => {
           return;
         }
 
-        // Search start
         if (type === "search_start") {
           const newSearchInfo = {
             stages: ["searching"],
@@ -302,12 +324,10 @@ const ChatMainHome = () => {
           mergeMessageUpdate(aiResponseId, {
             searchInfo: newSearchInfo,
             content: streamedContent || "",
-            // isLoading: false,
           });
           return;
         }
 
-        // Search results
         if (type === "search_results") {
           const rawUrls = parsed.urls ?? parsed.payload ?? [];
           const urls = safeJsonParse(
@@ -325,12 +345,10 @@ const ChatMainHome = () => {
           mergeMessageUpdate(aiResponseId, {
             searchInfo: newSearchInfo,
             content: streamedContent || "",
-            // isLoading: false,
           });
           return;
         }
 
-        // Search error
         if (type === "search_error") {
           const newSearchInfo = {
             stages: searchData
@@ -344,12 +362,10 @@ const ChatMainHome = () => {
           mergeMessageUpdate(aiResponseId, {
             searchInfo: newSearchInfo,
             content: streamedContent || "",
-            // isLoading: false,
           });
           return;
         }
 
-        // Followups
         if (type === "followup") {
           const items = parsed.items ?? parsed.followups ?? [];
           const safeItems = Array.isArray(items)
@@ -361,9 +377,6 @@ const ChatMainHome = () => {
           return;
         }
 
-        // Images: support multiple shapes
-        // - {"type":"images", "images": [...]}
-        // - {"type":"image_results","payload": {"images": [...], "query": "..."}}
         if (
           type === "images" ||
           type === "image_results" ||
@@ -374,18 +387,15 @@ const ChatMainHome = () => {
           if (type === "images") {
             imgs = parsed.images ?? parsed.payload ?? [];
           } else {
-            // image_results expected to have payload.images or payload
             const payload = parsed.payload ?? parsed;
             imgs = payload.images ?? payload.images ?? [];
           }
 
-          // Normalize images to array of objects {url, title, source} or simple urls
           if (Array.isArray(imgs)) {
             const normalized = imgs
               .map((it: any) => {
                 if (!it) return null;
                 if (typeof it === "string") return { url: it };
-                // an object from your backend: prefer {url,imageUrl} names
                 return {
                   url: it.url ?? it.imageUrl ?? it.src ?? it.link ?? null,
                   title: it.title ?? it.name ?? null,
@@ -396,25 +406,20 @@ const ChatMainHome = () => {
               .filter(Boolean);
             mergeMessageUpdate(aiResponseId, {
               images: normalized,
-              // isLoading: false,
             });
           }
           return;
         }
 
-        // Query DB results (optional)
         if (type === "query_db_results" || type === "db_results") {
           const payload = parsed.payload ?? parsed;
-          // keep sample rows in searchInfo or in special field
           mergeMessageUpdate(aiResponseId, {
             dbResults: payload,
             content: streamedContent || "",
-            // isLoading: false,
           });
           return;
         }
 
-        // End (finalize)
         if (type === "end") {
           mergeMessageUpdate(aiResponseId, {
             isLoading: false,
@@ -423,8 +428,6 @@ const ChatMainHome = () => {
           return;
         }
 
-        // Unknown / fallback: try to merge any payload fields
-        // If backend sends a raw payload with content/images in different keys.
         if (parsed.content || parsed.images || parsed.payload) {
           const fallbackImages = parsed.images ?? parsed.payload?.images ?? [];
           const fallbackContent =
@@ -450,63 +453,91 @@ const ChatMainHome = () => {
       }
     };
 
-    eventSource.onerror = (err) => {
-      console.error("EventSource transport error:", err);
+    eventSource.onerror = () => {
+      console.error("EventSource transport error");
 
-      // If backend already sent a logical error, do nothing
+      // ─────────────────────────────────────────────
+      // 1. HARD STOPS (nothing else should run)
+      // ─────────────────────────────────────────────
+      if (isCleanedUp) return;
+
       if (backendErrorReceived) {
         cleanup();
         return;
       }
 
-      // Retry only if:
-      // - no SSE data was ever received
-      // - no content streamed
-      // - only retry once
-      if (
-        !sawAnyData &&
-        !streamedContent &&
-        reconnectAttemptsRef.current < 1 &&
-        pendingInputRef.current
-      ) {
-        reconnectAttemptsRef.current += 1;
+      if (isRetryingRef.current) {
+        // 🔥 Prevent recursive retry submission (developer note)
+        cleanup();
+        return;
+      }
+
+      // ─────────────────────────────────────────────
+      // 2. FAIL FAST UI UPDATE (immediate feedback)
+      // ─────────────────────────────────────────────
+      const noDataAtAll = !sawAnyData && !streamedContent;
+      const partialData = sawAnyData && streamedContent;
+
+      // Show provisional error immediately
+      if (noDataAtAll) {
+        mergeMessageUpdate(aiResponseId, {
+          content: "⚠️ Connection lost. Attempting one retry...",
+          isLoading: false,
+        });
+      }
+
+      // ─────────────────────────────────────────────
+      // 3. ONE-TIME RETRY LOGIC
+      // ─────────────────────────────────────────────
+      const canRetry =
+        !isRetry &&
+        reconnectAttemptsRef.current === 0 &&
+        pendingInputRef.current;
+
+      if (canRetry) {
+        isRetryingRef.current = true;
+        reconnectAttemptsRef.current = 1;
 
         try {
           eventSource.close();
         } catch {}
+
         eventSourceRef.current = null;
 
+        const retryInput = pendingInputRef.current;
+
+        // Retry quickly (UX improvement)
         setTimeout(() => {
-          handleSubmit(pendingInputRef.current as any);
-        }, 600);
+          if (!retryInput) return;
+
+          handleSubmit(retryInput, true);
+        }, 300);
 
         return;
       }
 
-      // Handle case where request was too large / no content received
-      if (!sawAnyData && !streamedContent) {
-        mergeMessageUpdate(aiResponseId, {
-          content:
-            "⚠️ Your message is too long for the model or the connection failed. Try sending a shorter message.",
-          isLoading: false,
-          error: {
-            code: "REQUEST_TOO_LARGE_OR_TRANSPORT_ERROR",
-            message:
-              "The input may have exceeded the model token limit or the SSE connection failed. Reduce message size and try again.",
-          },
-        });
-      }
-
-      // Handle mid-stream transport failure (partial content)
-      if (sawAnyData && streamedContent) {
+      // ─────────────────────────────────────────────
+      // 4. FINAL ERROR STATE (NO MORE RETRIES)
+      // ─────────────────────────────────────────────
+      if (partialData) {
         mergeMessageUpdate(aiResponseId, {
           content:
             streamedContent +
-            "\n\n⚠️ Connection lost before completion. Partial response displayed.",
+            "\n\n⚠️ Connection lost before completion. Partial response shown.",
           isLoading: false,
           error: {
             code: "PARTIAL_RESPONSE",
-            message: "Connection lost mid-stream. Partial response shown.",
+            message: "Connection lost mid-stream.",
+          },
+        });
+      } else {
+        mergeMessageUpdate(aiResponseId, {
+          content:
+            "⚠️ Unable to connect to the server. Please try again in a moment.",
+          isLoading: false,
+          error: {
+            code: "CONNECTION_FAILED",
+            message: "Failed to establish SSE connection.",
           },
         });
       }
@@ -514,25 +545,11 @@ const ChatMainHome = () => {
       cleanup();
     };
 
-    // some backends send a named 'end' event, keep that handler too
     eventSource.addEventListener("end", () => {
-      try {
-        eventSource.close();
-      } catch {}
-    });
-
-    // cleanup on unmount (or when user issues another request)
-    // Note: we do not await anything here; this is immediate cleanup
-    const cleanupOnNavigation = () => {
       try {
         if (eventSource) eventSource.close();
       } catch {}
-      eventSourceRef.current = null;
-    };
-    window.addEventListener("beforeunload", cleanupOnNavigation);
-
-    // remove the beforeunload listener when done (we can't await end but we'll remove in finally)
-    // We don't have a finally here since onmessage/onerror/`end` will drive closure.
+    });
   };
 
   return (
@@ -560,7 +577,6 @@ const ChatMainHome = () => {
               originY: 1,
             }}
           >
-            {/* Header */}
             <div
               className="h-12 px-4 flex items-center justify-between text-sm font-medium"
               style={{
@@ -589,14 +605,12 @@ const ChatMainHome = () => {
               </div>
             </div>
 
-            {/* Messages */}
             <MessageArea
               messages={messages}
               isMaximized={isMaximized}
-              onSubmit={handleSubmit}
+              onSubmit={(msg, isRetry) => handleSubmit(msg, isRetry || false)}
             />
 
-            {/* Input */}
             <InputBar
               currentMessage={currentMessage}
               setCurrentMessage={setCurrentMessage}
@@ -606,7 +620,6 @@ const ChatMainHome = () => {
         )}
       </AnimatePresence>
 
-      {/* Floating Button */}
       {!isOpen && (
         <motion.button
           initial={{ opacity: 0, scale: 0.8 }}
