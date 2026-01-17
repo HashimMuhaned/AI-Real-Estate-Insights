@@ -16,42 +16,70 @@ type RawRow = {
 export async function listProjects({
   limit,
   offset,
+  filters,
 }: {
   limit: number;
   offset: number;
+  filters: {
+    q?: string | null;
+    sort?: string;
+    priceMin?: number | null;
+    priceMax?: number | null;
+    propertyType?: string | null;
+    delivery?: string | null;
+  };
 }) {
+  const where = sql`
+    WHERE 1=1
+    ${filters.q ? sql`AND p.project_name ILIKE ${"%" + filters.q + "%"}` : sql``}
+    ${filters.priceMin ? sql`AND p.starting_price >= ${filters.priceMin}` : sql``}
+    ${filters.priceMax ? sql`AND p.starting_price <= ${filters.priceMax}` : sql``}
+    ${filters.propertyType
+      ? sql`AND EXISTS (
+          SELECT 1 FROM project_property_types ppt
+          WHERE ppt.project_id = p.project_id
+            AND ppt.property_type = ${filters.propertyType}
+        )`
+      : sql``}
+    ${filters.delivery === "ready" ? sql`AND p.delivery_date <= NOW()` : sql``}
+    ${filters.delivery === "upcoming" ? sql`AND p.delivery_date > NOW()` : sql``}
+  `;
+
+  const orderBy =
+    filters.sort === "price-low"
+      ? sql`ORDER BY p.starting_price ASC NULLS LAST`
+      : filters.sort === "price-high"
+      ? sql`ORDER BY p.starting_price DESC NULLS LAST`
+      : filters.sort === "delivery"
+      ? sql`ORDER BY p.delivery_date ASC NULLS LAST`
+      : sql`ORDER BY p.scraped_at DESC, p.project_id DESC`;
+
   const rows = await db.execute<RawRow>(sql`
-   WITH paginated_projects AS (
-    SELECT
-        project_id,
-        project_name,
-        starting_price,
-        down_payment_percentage,
-        stock_availability,
-        delivery_date
-    FROM projects
-    ORDER BY scraped_at DESC, project_id DESC
-    LIMIT ${limit}
-    OFFSET ${offset}
+    WITH filtered_projects AS (
+      SELECT p.*
+      FROM projects p
+      ${where}
+      ${orderBy}
+      LIMIT ${limit}
+      OFFSET ${offset}
     )
     SELECT
-      p.project_id        AS id,
-      p.project_name      AS name,
-      p.starting_price    AS "startingPrice",
-      p.down_payment_percentage AS "downPayment",
-      p.stock_availability AS stock,
-      p.delivery_date     AS "deliveryDate",
-      img.image_url       AS image,
-      ppt.property_type   AS "propertyType",
-      a.name              AS amenity
-    FROM paginated_projects p
-    LEFT JOIN project_images img ON img.project_id = p.project_id
-    LEFT JOIN project_property_types ppt ON ppt.project_id = p.project_id
-    LEFT JOIN project_amenities pa ON pa.project_id = p.project_id
+      fp.project_id AS id,
+      fp.project_name AS name,
+      fp.starting_price AS "startingPrice",
+      fp.down_payment_percentage AS "downPayment",
+      fp.stock_availability AS stock,
+      fp.delivery_date AS "deliveryDate",
+      img.image_url AS image,
+      ppt.property_type AS "propertyType",
+      a.name AS amenity
+    FROM filtered_projects fp
+    LEFT JOIN project_images img ON img.project_id = fp.project_id
+    LEFT JOIN project_property_types ppt ON ppt.project_id = fp.project_id
+    LEFT JOIN project_amenities pa ON pa.project_id = fp.project_id
     LEFT JOIN amenities a ON a.amenity_id = pa.amenity_id
   `);
 
-  // Aggregate correctly
   const map = new Map<string, any>();
 
   for (const r of rows) {

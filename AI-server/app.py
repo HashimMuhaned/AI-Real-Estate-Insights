@@ -50,24 +50,29 @@ REFINER_PROMPT = """
 # ---------------------------------------------------------
 # Main async generator: streams AI content + handles memory
 # ---------------------------------------------------------
-async def generate_chat_responses(user_id: str, message: str):
+async def generate_chat_responses(user_id: Optional[str], message: str):
     events = None  # Initialize to None for finally block
     
+    # Determine if user is signed in
+    is_signed_in = bool(user_id and user_id.strip())
+    
     try:
-        # --- Load conversation history from Postgres
-        try:
-            pg_record = pg_get_conversation(user_id)
-            existing_messages = pg_record["messages"] if pg_record else []
-        except Exception as e:
-            print(f"Database error loading conversation: {e}")
-            yield (
-                'data: {'
-                '"type":"error",'
-                '"message":"Unable to load conversation history. Please try again.",'
-                '"code":"DATABASE_ERROR"'
-                '}\n\n'
-            )
-            return
+        # --- Load conversation history from Postgres (only for signed-in users)
+        existing_messages = []
+        if is_signed_in:
+            try:
+                pg_record = pg_get_conversation(user_id)
+                existing_messages = pg_record["messages"] if pg_record else []
+            except Exception as e:
+                print(f"Database error loading conversation: {e}")
+                yield (
+                    'data: {'
+                    '"type":"error",'
+                    '"message":"Unable to load conversation history. Please try again.",'
+                    '"code":"DATABASE_ERROR"'
+                    '}\n\n'
+                )
+                return
 
         # --- Keep only role & content from DB
         filtered_messages = [
@@ -110,13 +115,15 @@ async def generate_chat_responses(user_id: str, message: str):
         # --- Add new user message
         memory.chat_memory.add_message(HumanMessage(content=message))
 
-        print(f"================ Messages sent to LLM for user {user_id} ===============")
+        # Use a safe identifier for logging
+        user_identifier = user_id if is_signed_in else "anonymous"
+        print(f"================ Messages sent to LLM for user {user_identifier} ===============")
         for i, m in enumerate(memory.chat_memory.messages):
             print(f"{i+1}. Role: {m.type} | Content: {m.content}")
         print("===================================================================")
 
         # --- Config for React-style agent graph
-        config = {"configurable": {"thread_id": user_id}}
+        config = {"configurable": {"thread_id": user_id if is_signed_in else "anonymous"}}
         
         try:
             events = graph.astream_events(
@@ -140,7 +147,7 @@ async def generate_chat_responses(user_id: str, message: str):
             "id": None,
             "role": "ai",
             "content": "",
-            "user_id": user_id,
+            "user_id": user_id if is_signed_in else None,
             "sources": {},
             "followups": [],
         }
@@ -170,7 +177,7 @@ async def generate_chat_responses(user_id: str, message: str):
                 # --- Model end ---
                 elif etype == "on_chat_model_end" and node == "agent":
                     aggregated["content"] = ai_response
-                    yield f'data: {{"type":"checkpoint","checkpoint_id":"{user_id}"}}\n\n'
+                    yield f'data: {{"type":"checkpoint","checkpoint_id":"{user_id if is_signed_in else "anonymous"}"}}\n\n'
 
                 # --- Tool start ---
                 elif etype == "on_tool_start":
@@ -263,19 +270,23 @@ async def generate_chat_responses(user_id: str, message: str):
                 print(f"Error generating followups: {e}")
                 # Continue without followups - not critical
 
-        # --- Save messages ---
-        try:
-            pg_append_messages(
-                user_id,
-                [
-                    {"role": "user", "user_id": user_id, "content": message},
-                    {"role": "ai", "user_id": None, **aggregated},
-                ],
-            )
-        except Exception as e:
-            print(f"Error saving messages to database: {e}")
-            # Don't fail the request if we can't save to DB
-            # The user already got their response
+        # --- Save messages (ONLY for signed-in users) ---
+        if is_signed_in:
+            try:
+                pg_append_messages(
+                    user_id,
+                    [
+                        {"role": "user", "user_id": user_id, "content": message},
+                        {"role": "ai", "user_id": None, **aggregated},
+                    ],
+                )
+                print(f"✅ Messages saved to database for user {user_id}")
+            except Exception as e:
+                print(f"Error saving messages to database: {e}")
+                # Don't fail the request if we can't save to DB
+                # The user already got their response
+        else:
+            print(f"ℹ️ Anonymous user - messages not saved to database")
 
         # --- End of stream ---
         yield f'data: {{"type":"end"}}\n\n'
@@ -307,10 +318,16 @@ async def generate_chat_responses(user_id: str, message: str):
 # HTTP route: stream
 # -------------------
 @app.get("/chat_stream")
-async def chat_stream(query: str = Query(...), user_id: str = Query(...), checkpoint_id: str | None = None):
+async def chat_stream(
+    query: str = Query(...), 
+    user_id: Optional[str] = Query(None),  # Changed to Optional
+    checkpoint_id: Optional[str] = None
+):
     """
     Stream chat responses with proper error handling.
     Errors are sent as SSE events with type="error".
+    
+    user_id is now optional - if not provided, messages won't be saved to DB.
     """
     # Validate inputs
     if not query or not query.strip():
@@ -325,16 +342,7 @@ async def chat_stream(query: str = Query(...), user_id: str = Query(...), checkp
             )
         return StreamingResponse(error_generator(), media_type="text/event-stream")
 
-    if not user_id or not user_id.strip():
-        async def error_generator():
-            yield (
-                'data: {'
-                '"type":"error",'
-                '"message":"User identification required.",'
-                '"code":"MISSING_USER_ID"'
-                '}\n\n'
-            )
-        return StreamingResponse(error_generator(), media_type="text/event-stream")
+    # Note: user_id validation removed - it's now optional for anonymous users
 
     try:
         return StreamingResponse(
@@ -375,9 +383,20 @@ async def chat_boot(
     Persist greeting only when user_id is provided.
     """
     try:
+        # Determine if user is signed in
+        is_signed_in = bool(user_id and user_id.strip())
+        
         # If user_id provided, fetch the conversation and check greeted
-        pg_record = pg_get_conversation(user_id) if user_id else None
-        greeted = pg_record["greeted"] if pg_record else False
+        pg_record = None
+        greeted = False
+        
+        if is_signed_in:
+            try:
+                pg_record = pg_get_conversation(user_id)
+                greeted = pg_record["greeted"] if pg_record else False
+            except Exception as e:
+                print(f"Database error in chat_boot: {e}")
+                # Continue with greeting generation for signed-in users even if DB fails
 
         # If already greeted and we have a record, return stored messages
         if greeted and pg_record:
@@ -402,13 +421,16 @@ async def chat_boot(
             {"role": "ai", "content": ai_greeting, "user_id": None},
         ]
 
-        # Persist greeting only if user_id is provided (so anonymous users won't create permanent DB rows)
-        if user_id:
+        # Persist greeting only if user_id is provided (signed-in users)
+        if is_signed_in:
             try:
                 pg_upsert_greeting(user_id, fname, formatted)
+                print(f"✅ Greeting saved for user {user_id}")
             except Exception as e:
                 print(f"Error saving greeting to database: {e}")
                 # Continue anyway - user can still see the greeting
+        else:
+            print(f"ℹ️ Anonymous user - greeting not saved to database")
 
         return {"messages": formatted}
 

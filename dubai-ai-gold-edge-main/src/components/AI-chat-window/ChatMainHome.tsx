@@ -12,7 +12,7 @@ import { AnimatePresence, motion } from "framer-motion";
 const ChatMainHome = () => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const { messages, setMessages } = useChat();
+  const { messages, setMessages, isAnonymous } = useChat(); // 👈 Get isAnonymous flag
   const [currentMessage, setCurrentMessage] = useState("");
   const [checkpointId, setCheckpointId] = useState<string | null>(null);
 
@@ -166,9 +166,18 @@ const ChatMainHome = () => {
     const base = "http://localhost:8000";
     const sseUrl = new URL("/chat_stream", base);
     sseUrl.searchParams.append("query", userInput);
-    if (userId) sseUrl.searchParams.append("user_id", String(userId));
-    if (checkpointId)
+    
+    // 👇 CRITICAL CHANGE: Only add user_id if authenticated
+    if (userId) {
+      sseUrl.searchParams.append("user_id", String(userId));
+      console.log("✅ Authenticated user - messages will be saved");
+    } else {
+      console.log("ℹ️ Anonymous user - messages will not be saved");
+    }
+    
+    if (checkpointId) {
       sseUrl.searchParams.append("checkpoint_id", String(checkpointId));
+    }
 
     if (eventSourceRef.current) {
       try {
@@ -610,7 +619,9 @@ const ChatMainHome = () => {
                   "linear-gradient(135deg, hsl(35 25% 88%), hsl(25 20% 92%))",
               }}
             >
-              <span className="text-gray-700">AI Assistant</span>
+              <span className="text-gray-700">
+                AI Assistant {isAnonymous && "(Guest Mode)"}
+              </span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsMaximized((prev) => !prev)}

@@ -2,16 +2,67 @@
 
 import React, { useState, useEffect, useRef, memo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, LogIn, AlertCircle } from "lucide-react";
 import { Virtuoso } from "react-virtuoso";
 import MarkdownRenderer from "@/helpers/OrgLLMRES";
 import { type ChatMessage } from "../../context/ChatContext";
+import { useSession, signIn } from "next-auth/react";
 
 interface MessageAreaProps {
   messages: ChatMessage[];
   isMaximized: boolean;
   onSubmit: (msg: string, isRetry?: boolean) => void;
 }
+
+// ============================================================================
+// ANONYMOUS USER WARNING BANNER
+// ============================================================================
+const AnonymousWarningBanner = memo(() => {
+  const [isDismissed, setIsDismissed] = useState(false);
+
+  if (isDismissed) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="sticky top-0 z-10 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 shadow-sm"
+    >
+      <div className="px-4 py-3">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 mt-0.5">
+            <AlertCircle className="w-5 h-5 text-amber-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-amber-900 mb-1">
+              Guest Mode - Chat History Not Saved
+            </p>
+            <p className="text-xs text-amber-700 leading-relaxed mb-2">
+              Your conversation will be lost when you close this window. Sign in to save your chat history and continue conversations later.
+            </p>
+            <button
+              onClick={() => signIn("google")}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-medium hover:bg-amber-700 transition-colors shadow-sm hover:shadow-md"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              Sign In with Google
+            </button>
+          </div>
+          <button
+            onClick={() => setIsDismissed(true)}
+            className="flex-shrink-0 p-1 rounded hover:bg-amber-100 transition-colors"
+            aria-label="Dismiss"
+          >
+            <X className="w-4 h-4 text-amber-600" />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+});
+
+AnonymousWarningBanner.displayName = "AnonymousWarningBanner";
 
 // ============================================================================
 // TYPING ANIMATION
@@ -612,6 +663,9 @@ MessageBubble.displayName = "MessageBubble";
 // MAIN MESSAGE AREA
 // ============================================================================
 const MessageArea = ({ messages, isMaximized, onSubmit }: MessageAreaProps) => {
+  const { status } = useSession();
+  const isAnonymous = status === "unauthenticated";
+
   const [modalState, setModalState] = useState({
     isOpen: false,
     images: [],
@@ -667,6 +721,9 @@ const MessageArea = ({ messages, isMaximized, onSubmit }: MessageAreaProps) => {
           isMaximized ? "pb-28" : ""
         }`}
       >
+        {/* 👇 ANONYMOUS USER WARNING BANNER */}
+        {isAnonymous && <AnonymousWarningBanner />}
+
         {useVirtualization ? (
           <Virtuoso
             ref={virtuosoRef}
