@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, LogIn, AlertCircle } from "lucide-react";
 import { Virtuoso } from "react-virtuoso";
 import MarkdownRenderer from "@/helpers/OrgLLMRES";
-import { type ChatMessage } from "../../context/ChatContext";
+import { type ChatMessage, useChat } from "../../context/ChatContext";
 import { useSession, signIn } from "next-auth/react";
 
 interface MessageAreaProps {
@@ -17,11 +17,104 @@ interface MessageAreaProps {
 // ============================================================================
 // ANONYMOUS USER WARNING BANNER
 // ============================================================================
-const AnonymousWarningBanner = memo(() => {
+const AnonymousWarningBanner = memo(({ isSyncing, syncSuccess }: { isSyncing: boolean, syncSuccess: boolean }) => {
   const [isDismissed, setIsDismissed] = useState(false);
 
   if (isDismissed) return null;
 
+  // Show success message if sync completed
+  if (syncSuccess) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        className="sticky top-0 z-10 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-200 shadow-sm"
+      >
+        <div className="px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <svg
+                className="w-5 h-5 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-green-900">
+                Chat History Saved!
+              </p>
+              <p className="text-xs text-green-700">
+                Your previous conversation has been saved to your account.
+              </p>
+            </div>
+            <button
+              onClick={() => setIsDismissed(true)}
+              className="flex-shrink-0 p-1 rounded hover:bg-green-100 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="w-4 h-4 text-green-600" />
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // Show syncing message
+  if (isSyncing) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="sticky top-0 z-10 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200 shadow-sm"
+      >
+        <div className="px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <svg
+                className="w-5 h-5 text-blue-600 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-blue-900">
+                Saving Your Chat History...
+              </p>
+              <p className="text-xs text-blue-700">
+                We're saving your conversation to your account.
+              </p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // Show default warning for anonymous users
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
@@ -664,6 +757,7 @@ MessageBubble.displayName = "MessageBubble";
 // ============================================================================
 const MessageArea = ({ messages, isMaximized, onSubmit }: MessageAreaProps) => {
   const { status } = useSession();
+  const { isSyncing, syncSuccess } = useChat(); // 👈 Get sync states from context
   const isAnonymous = status === "unauthenticated";
 
   const [modalState, setModalState] = useState({
@@ -721,8 +815,10 @@ const MessageArea = ({ messages, isMaximized, onSubmit }: MessageAreaProps) => {
           isMaximized ? "pb-28" : ""
         }`}
       >
-        {/* 👇 ANONYMOUS USER WARNING BANNER */}
-        {isAnonymous && <AnonymousWarningBanner />}
+        {/* 👇 ANONYMOUS USER WARNING BANNER OR SYNC STATUS */}
+        {(isAnonymous || isSyncing || syncSuccess) && (
+          <AnonymousWarningBanner isSyncing={isSyncing} syncSuccess={syncSuccess} />
+        )}
 
         {useVirtualization ? (
           <Virtuoso

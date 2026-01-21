@@ -10,10 +10,19 @@ export async function GET(req: Request) {
   const filters = {
     q: searchParams.get("q"),
     sort: searchParams.get("sort") ?? "recent",
-    priceMin: searchParams.get("priceMin") ? Number(searchParams.get("priceMin")) : null,
-    priceMax: searchParams.get("priceMax") ? Number(searchParams.get("priceMax")) : null,
+    priceMin: searchParams.get("priceMin")
+      ? Number(searchParams.get("priceMin"))
+      : null,
+    priceMax: searchParams.get("priceMax")
+      ? Number(searchParams.get("priceMax"))
+      : null,
     propertyType: searchParams.get("propertyType"),
     delivery: searchParams.get("delivery"),
+
+    // ✅ ADD THIS
+    developer: searchParams.get("developer")
+      ? Number(searchParams.get("developer"))
+      : null,
   };
 
   const projects = await listProjects({
@@ -28,3 +37,4 @@ export async function GET(req: Request) {
     hasMore: projects.length === limit,
   });
 }
+

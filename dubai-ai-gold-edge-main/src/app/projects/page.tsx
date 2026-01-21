@@ -1,7 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
-import { Search, ChevronDown, Sparkles, X, Send, SlidersHorizontal } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Search,
+  ChevronDown,
+  Sparkles,
+  X,
+  Send,
+  SlidersHorizontal,
+  Building2,
+} from "lucide-react";
+
+type Developer = {
+  id: number;
+  name: string;
+  logo?: string;
+};
 
 type Project = {
   id: string;
@@ -13,49 +27,108 @@ type Project = {
   stock?: string;
   deliveryDate?: string;
   amenities: string[];
+  developer: Developer;
 };
 
 const LIMIT = 12;
+
+// Helper function to format price
+function formatPrice(price?: number): string {
+  if (!price) return "N/A";
+
+  if (price >= 1000000) {
+    const millions = price / 1000000;
+    return `${millions % 1 === 0 ? millions : millions.toFixed(1)}M`;
+  } else if (price >= 1000) {
+    const thousands = price / 1000;
+    return `${thousands % 1 === 0 ? thousands : thousands.toFixed(1)}K`;
+  }
+
+  return price.toLocaleString();
+}
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
-  
+
   // Filter states
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState("recent");
   const [priceRange, setPriceRange] = useState("all");
   const [propertyType, setPropertyType] = useState("all");
   const [deliveryStatus, setDeliveryStatus] = useState("all");
+  const [selectedDeveloper, setSelectedDeveloper] = useState("all");
   const [showAIModal, setShowAIModal] = useState(false);
   const [aiQuery, setAiQuery] = useState("");
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
-  const loaderRef = useRef<HTMLDivElement | null>(null);
+  // Developer dropdown states
+  const [developers, setDevelopers] = useState<Developer[]>([]);
+  const [developerSearch, setDeveloperSearch] = useState("");
+  const [showDeveloperDropdown, setShowDeveloperDropdown] = useState(false);
 
-  // Calculate hasActiveFilters first, before it's used in useEffect
-  const hasActiveFilters = priceRange !== "all" || propertyType !== "all" || deliveryStatus !== "all" || sortBy !== "recent" || query !== "";
+  const loaderRef = useRef<HTMLDivElement | null>(null);
+  const developerDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  // Calculate hasActiveFilters
+  const hasActiveFilters =
+    priceRange !== "all" ||
+    propertyType !== "all" ||
+    deliveryStatus !== "all" ||
+    sortBy !== "recent" ||
+    query !== "" ||
+    selectedDeveloper !== "all";
+
+  // Fetch developers list
+  useEffect(() => {
+    async function fetchDevelopers() {
+      try {
+        const res = await fetch("/api/developers");
+        const data = await res.json();
+        setDevelopers(data.developers || []);
+      } catch (error) {
+        console.error("Error loading developers:", error);
+      }
+    }
+    fetchDevelopers();
+  }, []);
+
+  // Close developer dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        developerDropdownRef.current &&
+        !developerDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowDeveloperDropdown(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   async function loadMore() {
     if (loading || !hasMore) return;
     setLoading(true);
 
-    // Build query params with filters
     const params = new URLSearchParams({
       limit: LIMIT.toString(),
       offset: offset.toString(),
     });
 
-    // Add filters to query params
     if (query) params.set("q", query);
     if (sortBy !== "recent") params.set("sort", sortBy);
     if (propertyType !== "all") params.set("propertyType", propertyType);
     if (deliveryStatus !== "all") params.set("delivery", deliveryStatus);
-    
-    // Add price range filters
+    if (selectedDeveloper !== "all") {
+      params.set("developer", selectedDeveloper);
+      console.log("Loading more with developer filter:", selectedDeveloper);
+    }
+
     if (priceRange === "under1m") {
       params.set("priceMax", "999999");
     } else if (priceRange === "1m-2m") {
@@ -69,14 +142,16 @@ export default function ProjectsPage() {
     }
 
     try {
+      console.log("Fetching projects with params:", params.toString());
       const res = await fetch(`/api/projects?${params.toString()}`);
       const data = await res.json();
 
-      setProjects((prev) => [...prev, ...data.projects]);
+      setProjects((prev) => [...prev, ...(data.projects || [])]);
       setOffset(data.nextOffset);
       setHasMore(data.hasMore);
     } catch (error) {
       console.error("Error loading projects:", error);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -84,19 +159,16 @@ export default function ProjectsPage() {
 
   // Reset and reload when filters change
   useEffect(() => {
-    // Don't trigger if we're manually clearing filters
     if (isClearing) return;
-    
-    // Reset state
+
     setProjects([]);
     setOffset(0);
     setHasMore(true);
     setLoading(false);
-    
-    // Immediately load with new filters
+
     const fetchProjects = async () => {
       setLoading(true);
-      
+
       const params = new URLSearchParams({
         limit: LIMIT.toString(),
         offset: "0",
@@ -106,7 +178,9 @@ export default function ProjectsPage() {
       if (sortBy !== "recent") params.set("sort", sortBy);
       if (propertyType !== "all") params.set("propertyType", propertyType);
       if (deliveryStatus !== "all") params.set("delivery", deliveryStatus);
-      
+      if (selectedDeveloper !== "all")
+        params.set("developer", selectedDeveloper);
+
       if (priceRange === "under1m") {
         params.set("priceMax", "999999");
       } else if (priceRange === "1m-2m") {
@@ -123,18 +197,28 @@ export default function ProjectsPage() {
         const res = await fetch(`/api/projects?${params.toString()}`);
         const data = await res.json();
 
-        setProjects(data.projects);
+        setProjects(data.projects || []);
         setOffset(data.nextOffset);
         setHasMore(data.hasMore);
       } catch (error) {
         console.error("Error loading projects:", error);
+        setProjects([]);
+        setHasMore(false);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchProjects();
-  }, [query, sortBy, priceRange, propertyType, deliveryStatus]);
+  }, [
+    query,
+    sortBy,
+    priceRange,
+    propertyType,
+    deliveryStatus,
+    selectedDeveloper,
+    isClearing,
+  ]);
 
   // Infinite scroll observer
   useEffect(() => {
@@ -151,50 +235,65 @@ export default function ProjectsPage() {
 
     observer.observe(loaderRef.current);
     return () => observer.disconnect();
-  }, [offset, hasMore, loading]);
+  }, [
+    offset,
+    hasMore,
+    loading,
+    query,
+    sortBy,
+    priceRange,
+    propertyType,
+    deliveryStatus,
+    selectedDeveloper,
+  ]);
 
-  // No client-side filtering needed anymore - backend handles it
   const filtered = projects;
 
   const clearAllFilters = async () => {
-    // Set flag to prevent useEffect from interfering
     setIsClearing(true);
-    
-    // Reset all filter values
+
     setQuery("");
     setPriceRange("all");
     setPropertyType("all");
     setDeliveryStatus("all");
     setSortBy("recent");
-    
-    // Force reload by resetting state and fetching immediately
+    setSelectedDeveloper("all");
+    setDeveloperSearch("");
+
     setProjects([]);
     setOffset(0);
     setHasMore(true);
     setLoading(true);
-    
+
     try {
-      // Fetch projects with no filters
       const params = new URLSearchParams({
         limit: LIMIT.toString(),
         offset: "0",
         sort: "recent",
       });
-      
+
       const res = await fetch(`/api/projects?${params.toString()}`);
       const data = await res.json();
-      
-      setProjects(data.projects);
-      setOffset(data.nextOffset);
-      setHasMore(data.hasMore);
+
+      setProjects(data.projects || []);
+      setOffset(data.nextOffset || 0);
+      setHasMore(data.hasMore || false);
     } catch (error) {
       console.error("Error loading projects:", error);
     } finally {
       setLoading(false);
-      // Reset the flag after a small delay to allow state to settle
       setTimeout(() => setIsClearing(false), 100);
     }
   };
+
+  // Filter developers based on search
+  const filteredDevelopers = developers.filter((dev) =>
+    dev.name.toLowerCase().includes(developerSearch.toLowerCase())
+  );
+
+  const selectedDeveloperName =
+    developers.find((d) => d.id.toString() === selectedDeveloper)?.name ||
+    "All Developers";
 
   return (
     <div className="min-h-screen bg-background">
@@ -206,7 +305,8 @@ export default function ProjectsPage() {
               Analyse Dubai's Upcoming Projects
             </h1>
             <p className="text-xl text-primary-foreground/90 max-w-2xl mx-auto">
-              Discover investment opportunities across Dubai's most promising projects and developments.
+              Discover investment opportunities across Dubai's most promising
+              projects and developments.
             </p>
           </div>
         </div>
@@ -229,6 +329,15 @@ export default function ProjectsPage() {
                 setPropertyType={setPropertyType}
                 deliveryStatus={deliveryStatus}
                 setDeliveryStatus={setDeliveryStatus}
+                selectedDeveloper={selectedDeveloper}
+                setSelectedDeveloper={setSelectedDeveloper}
+                selectedDeveloperName={selectedDeveloperName}
+                developers={filteredDevelopers}
+                developerSearch={developerSearch}
+                setDeveloperSearch={setDeveloperSearch}
+                showDeveloperDropdown={showDeveloperDropdown}
+                setShowDeveloperDropdown={setShowDeveloperDropdown}
+                developerDropdownRef={developerDropdownRef}
                 hasActiveFilters={hasActiveFilters}
                 clearAllFilters={clearAllFilters}
                 setShowAIModal={setShowAIModal}
@@ -246,11 +355,20 @@ export default function ProjectsPage() {
               {showMobileFilters ? "Hide Filters" : "Show Filters"}
               {hasActiveFilters && (
                 <span className="ml-2 px-2 py-0.5 bg-primary text-primary-foreground rounded-full text-xs">
-                  {[query, priceRange !== "all", propertyType !== "all", deliveryStatus !== "all", sortBy !== "recent"].filter(Boolean).length}
+                  {
+                    [
+                      query,
+                      priceRange !== "all",
+                      propertyType !== "all",
+                      deliveryStatus !== "all",
+                      sortBy !== "recent",
+                      selectedDeveloper !== "all",
+                    ].filter(Boolean).length
+                  }
                 </span>
               )}
             </button>
-            
+
             {showMobileFilters && (
               <div className="mt-4 bg-card rounded-2xl border shadow-lg p-6">
                 <FilterSidebarContent
@@ -264,6 +382,15 @@ export default function ProjectsPage() {
                   setPropertyType={setPropertyType}
                   deliveryStatus={deliveryStatus}
                   setDeliveryStatus={setDeliveryStatus}
+                  selectedDeveloper={selectedDeveloper}
+                  setSelectedDeveloper={setSelectedDeveloper}
+                  selectedDeveloperName={selectedDeveloperName}
+                  developers={filteredDevelopers}
+                  developerSearch={developerSearch}
+                  setDeveloperSearch={setDeveloperSearch}
+                  showDeveloperDropdown={showDeveloperDropdown}
+                  setShowDeveloperDropdown={setShowDeveloperDropdown}
+                  developerDropdownRef={developerDropdownRef}
                   hasActiveFilters={hasActiveFilters}
                   clearAllFilters={clearAllFilters}
                   setShowAIModal={setShowAIModal}
@@ -277,8 +404,14 @@ export default function ProjectsPage() {
             {/* Results Counter */}
             <div className="mb-6 flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                Showing <span className="font-bold text-foreground">{filtered.length}</span> projects
-                {hasMore && <span className="text-xs ml-1">(scroll for more)</span>}
+                Showing{" "}
+                <span className="font-bold text-foreground">
+                  {filtered.length}
+                </span>{" "}
+                projects
+                {hasMore && (
+                  <span className="text-xs ml-1">(scroll for more)</span>
+                )}
               </p>
             </div>
 
@@ -316,7 +449,17 @@ export default function ProjectsPage() {
                       </div>
 
                       <div className="p-5 space-y-2">
-                        <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">{p.name}</h3>
+                        <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">
+                          {p.name}
+                        </h3>
+
+                        {/* Developer */}
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground font-medium">
+                            {p.developer.name}
+                          </span>
+                        </div>
 
                         <p className="text-sm text-muted-foreground">
                           {p.propertyTypes.join(", ")}
@@ -324,12 +467,14 @@ export default function ProjectsPage() {
 
                         <p className="font-medium">
                           Starting from{" "}
-                          <span className="text-primary">
-                            AED {p.startingPrice?.toLocaleString()}
+                          <span className="text-primary text-lg font-bold">
+                            AED {formatPrice(p.startingPrice)}
                           </span>
                         </p>
 
-                        <p className="text-sm">Down payment: {p.downPayment ?? "-"}%</p>
+                        <p className="text-sm">
+                          Down payment: {p.downPayment ?? "-"}%
+                        </p>
 
                         <p className="text-sm">
                           Delivery:{" "}
@@ -342,7 +487,10 @@ export default function ProjectsPage() {
 
                         <div className="flex flex-wrap gap-2 pt-2">
                           {p.amenities.slice(0, 5).map((a) => (
-                            <span key={a} className="text-xs bg-muted px-2 py-1 rounded">
+                            <span
+                              key={a}
+                              className="text-xs bg-muted px-2 py-1 rounded"
+                            >
                               {a}
                             </span>
                           ))}
@@ -384,7 +532,9 @@ export default function ProjectsPage() {
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold">AI Assistant</h2>
-                    <p className="text-sm text-primary-foreground/80">Tell me what you're looking for</p>
+                    <p className="text-sm text-primary-foreground/80">
+                      Tell me what you're looking for
+                    </p>
                   </div>
                 </div>
                 <button
@@ -399,7 +549,8 @@ export default function ProjectsPage() {
             <div className="p-6 flex-1 overflow-y-auto">
               <div className="space-y-4">
                 <p className="text-muted-foreground">
-                  Describe what kind of project you're looking for, and I'll help you find the perfect match.
+                  Describe what kind of project you're looking for, and I'll
+                  help you find the perfect match.
                 </p>
 
                 <div className="space-y-2">
@@ -408,7 +559,7 @@ export default function ProjectsPage() {
                     {[
                       "Show me luxury apartments ready to move in under 2M",
                       "Find villas with good ROI delivering in 2025",
-                      "I want projects with low down payment and beach access"
+                      "I want projects with low down payment and beach access",
                     ].map((example, idx) => (
                       <button
                         key={idx}
@@ -465,9 +616,18 @@ function FilterSidebarContent({
   setPropertyType,
   deliveryStatus,
   setDeliveryStatus,
+  selectedDeveloper,
+  setSelectedDeveloper,
+  selectedDeveloperName,
+  developers,
+  developerSearch,
+  setDeveloperSearch,
+  showDeveloperDropdown,
+  setShowDeveloperDropdown,
+  developerDropdownRef,
   hasActiveFilters,
   clearAllFilters,
-  setShowAIModal
+  setShowAIModal,
 }: {
   query: string;
   setQuery: (q: string) => void;
@@ -479,28 +639,31 @@ function FilterSidebarContent({
   setPropertyType: (p: string) => void;
   deliveryStatus: string;
   setDeliveryStatus: (d: string) => void;
+  selectedDeveloper: string;
+  setSelectedDeveloper: (d: string) => void;
+  selectedDeveloperName: string;
+  developers: Developer[];
+  developerSearch: string;
+  setDeveloperSearch: (s: string) => void;
+  showDeveloperDropdown: boolean;
+  setShowDeveloperDropdown: (show: boolean) => void;
+  developerDropdownRef: React.RefObject<HTMLDivElement>;
   hasActiveFilters: boolean;
   clearAllFilters: () => void;
   setShowAIModal: (show: boolean) => void;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Search */}
-      <div className="space-y-2">
-        <h3 className="font-semibold text-sm flex items-center gap-2">
-          <Search className="w-4 h-4 text-primary" />
-          Search
-        </h3>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Project name..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-background text-sm"
-          />
-        </div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Project name..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="w-full pl-10 pr-4 py-2.5 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-background text-sm"
+        />
       </div>
 
       {/* AI Assistant Button */}
@@ -533,6 +696,76 @@ function FilterSidebarContent({
             <option value="delivery">Delivery Date</option>
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        </div>
+      </div>
+
+      {/* Developer Filter */}
+      <div className="space-y-2">
+        <label className="font-semibold text-sm flex items-center gap-2">
+          <div className="w-1 h-4 bg-accent rounded-full"></div>
+          Developer
+        </label>
+        <div className="relative" ref={developerDropdownRef}>
+          <button
+            onClick={() => setShowDeveloperDropdown(!showDeveloperDropdown)}
+            className="w-full appearance-none px-3 py-2.5 pr-10 rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background cursor-pointer transition-all text-sm text-left"
+          >
+            {selectedDeveloperName}
+          </button>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+
+          {showDeveloperDropdown && (
+            <div className="absolute z-10 w-full mt-1 bg-card border-2 border-primary rounded-lg shadow-lg max-h-64 overflow-hidden flex flex-col">
+              <div className="p-2 border-b">
+                <input
+                  type="text"
+                  placeholder="Search developers..."
+                  value={developerSearch}
+                  onChange={(e) => setDeveloperSearch(e.target.value)}
+                  className="w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+              <div className="overflow-y-auto">
+                <button
+                  onClick={() => {
+                    setSelectedDeveloper("all");
+                    setShowDeveloperDropdown(false);
+                    setDeveloperSearch("");
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-primary/10 transition-colors text-sm"
+                >
+                  All Developers
+                </button>
+                {developers.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    No developers found
+                  </div>
+                ) : (
+                  developers.map((dev) => (
+                    <button
+                      key={dev.id}
+                      onClick={() => {
+                        setSelectedDeveloper(dev.id.toString());
+                        setShowDeveloperDropdown(false);
+                        setDeveloperSearch("");
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-primary/10 transition-colors text-sm flex items-center gap-2"
+                    >
+                      {dev.logo && (
+                        <img
+                          src={dev.logo}
+                          alt={dev.name}
+                          className="w-5 h-5 object-contain"
+                        />
+                      )}
+                      {dev.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -606,7 +839,9 @@ function FilterSidebarContent({
           <div className="border-t"></div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">Active Filters</span>
+              <span className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">
+                Active Filters
+              </span>
               <button
                 onClick={clearAllFilters}
                 className="text-xs text-primary hover:text-primary/80 font-medium underline"
@@ -617,16 +852,28 @@ function FilterSidebarContent({
             <div className="flex flex-wrap gap-1.5">
               {query && (
                 <span className="px-2.5 py-1 bg-primary/10 text-primary rounded-full text-xs flex items-center gap-1">
-                  "{query.length > 15 ? query.slice(0, 15) + '...' : query}"
-                  <button onClick={() => setQuery("")} className="hover:bg-primary/20 rounded-full p-0.5">
+                  "{query.length > 15 ? query.slice(0, 15) + "..." : query}"
+                  <button
+                    onClick={() => setQuery("")}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
                     <X className="w-3 h-3" />
                   </button>
                 </span>
               )}
               {priceRange !== "all" && (
                 <span className="px-2.5 py-1 bg-primary/10 text-primary rounded-full text-xs flex items-center gap-1">
-                  {priceRange === "under1m" ? "<1M" : priceRange === "1m-2m" ? "1M-2M" : priceRange === "2m-3m" ? "2M-3M" : ">3M"}
-                  <button onClick={() => setPriceRange("all")} className="hover:bg-primary/20 rounded-full p-0.5">
+                  {priceRange === "under1m"
+                    ? "<1M"
+                    : priceRange === "1m-2m"
+                    ? "1M-2M"
+                    : priceRange === "2m-3m"
+                    ? "2M-3M"
+                    : ">3M"}
+                  <button
+                    onClick={() => setPriceRange("all")}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
                     <X className="w-3 h-3" />
                   </button>
                 </span>
@@ -634,7 +881,10 @@ function FilterSidebarContent({
               {propertyType !== "all" && (
                 <span className="px-2.5 py-1 bg-primary/10 text-primary rounded-full text-xs flex items-center gap-1 capitalize">
                   {propertyType}
-                  <button onClick={() => setPropertyType("all")} className="hover:bg-primary/20 rounded-full p-0.5">
+                  <button
+                    onClick={() => setPropertyType("all")}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
                     <X className="w-3 h-3" />
                   </button>
                 </span>
@@ -642,7 +892,23 @@ function FilterSidebarContent({
               {deliveryStatus !== "all" && (
                 <span className="px-2.5 py-1 bg-primary/10 text-primary rounded-full text-xs flex items-center gap-1 capitalize">
                   {deliveryStatus}
-                  <button onClick={() => setDeliveryStatus("all")} className="hover:bg-primary/20 rounded-full p-0.5">
+                  <button
+                    onClick={() => setDeliveryStatus("all")}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {selectedDeveloper !== "all" && (
+                <span className="px-2.5 py-1 bg-primary/10 text-primary rounded-full text-xs flex items-center gap-1">
+                  {selectedDeveloperName.length > 15
+                    ? selectedDeveloperName.slice(0, 15) + "..."
+                    : selectedDeveloperName}
+                  <button
+                    onClick={() => setSelectedDeveloper("all")}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
                     <X className="w-3 h-3" />
                   </button>
                 </span>

@@ -11,6 +11,8 @@ import {
   Send,
   SlidersHorizontal,
 } from "lucide-react";
+import Link from "next/link";
+import { slugify } from "@/lib/slugify";
 
 type Community = {
   id: number;
@@ -317,9 +319,9 @@ export default function CommunitiesPage() {
 
                       {/* CTA BUTTONS */}
                       <div className="flex gap-3 mt-auto">
-                        <button className="flex-1 text-center rounded-lg bg-primary text-primary-foreground py-2.5 text-sm font-medium hover:bg-primary/90 transition-all">
+                        <Link href={`/communities/${slugify(c.name)}`} className="flex-1 text-center rounded-lg bg-primary text-primary-foreground py-2.5 text-sm font-medium hover:bg-primary/90 transition-all">
                           Explore Community
-                        </button>
+                        </Link>
 
                         {c.project_count > 0 && (
                           <button className="flex-1 text-center rounded-lg border border-primary text-primary py-2.5 text-sm font-medium hover:bg-primary/10 transition-all">

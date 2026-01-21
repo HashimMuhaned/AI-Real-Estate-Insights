@@ -1,4 +1,3 @@
 export function slugify(text: string) {
-  return text
-    .replace(/\s+/g, "-") // Replace spaces with -
+  return text.toLowerCase().trim().replace(/\s+/g, "-"); // replace spaces with hyphen
 }

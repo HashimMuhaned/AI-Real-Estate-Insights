@@ -12,7 +12,13 @@ const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
 
-  const isHomePage = pathname === "/";
+  // Check if current page should have white nav links when not scrolled
+  const isWhiteNavPage = 
+    pathname === "/" || 
+    pathname === "/explore-areas" || 
+    pathname.startsWith("/area-insight-") ||
+    pathname === "/communities" ||
+    pathname === "/projects";
 
   useEffect(() => {
     const handleScroll = () => {
@@ -37,9 +43,14 @@ const Navbar = () => {
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? "bg-background/95 backdrop-blur-md shadow-luxury border-b border-border/50"
+          ? "bg-background border-b border-border/50"
           : "bg-transparent"
       }`}
+      style={
+        isScrolled
+          ? { boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)" }
+          : undefined
+      }
     >
       {/* Geometric border */}
       <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-accent/30 to-transparent"></div>
@@ -48,7 +59,9 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <h1 className="text-2xl font-serif font-bold text-primary-foreground">
+            <h1 className={`text-2xl font-serif font-bold ${
+              isWhiteNavPage && !isScrolled ? "text-white" : "text-foreground"
+            }`}>
               {/* DXB AI */}
             </h1>
           </div>
@@ -60,9 +73,7 @@ const Navbar = () => {
                 key={link.name}
                 href={link.href}
                 className={`transition-colors duration-200 font-medium hover:text-accent ${
-                  isScrolled 
-                    ? "text-black"
-                    : "text-primary-foreground/90"
+                  isWhiteNavPage && !isScrolled ? "text-white" : "text-foreground"
                 }`}
               >
                 {link.name}
@@ -76,7 +87,9 @@ const Navbar = () => {
           <div className="md:hidden">
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="text-primary-foreground p-2"
+              className={`p-2 ${
+                isWhiteNavPage && !isScrolled ? "text-white" : "text-foreground"
+              }`}
             >
               {isMobileMenuOpen ? (
                 <X className="h-6 w-6" />
@@ -89,7 +102,7 @@ const Navbar = () => {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden bg-background/95 backdrop-blur-md border-t border-border/50">
+          <div className="md:hidden bg-background border-t border-border/50">
             <div className="px-2 pt-2 pb-3 space-y-1">
               {navLinks.map((link) => (
                 <a

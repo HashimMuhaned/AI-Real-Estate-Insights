@@ -373,7 +373,9 @@ async def chat_stream(
 # -----------------------
 @app.get("/chat_boot")
 async def chat_boot(
-    user_id: Optional[str] = Query(None), fname: Optional[str] = Query(None)
+    user_id: Optional[str] = Query(None), 
+    fname: Optional[str] = Query(None),
+    skip_greeting: Optional[bool] = Query(False)  # 👈 NEW: Allow skipping greeting
 ):
     """
     If user_id provided and greeted=True -> return stored messages.
@@ -381,6 +383,8 @@ async def chat_boot(
       - personalize if fname provided,
       - generic if no fname.
     Persist greeting only when user_id is provided.
+    
+    skip_greeting: Set to true when user has existing anonymous messages
     """
     try:
         # Determine if user is signed in
@@ -401,6 +405,12 @@ async def chat_boot(
         # If already greeted and we have a record, return stored messages
         if greeted and pg_record:
             return {"messages": pg_record["messages"]}
+
+        # 🔥 NEW: If skip_greeting is true, return empty messages
+        # This happens when user just logged in with existing anonymous chat
+        if skip_greeting:
+            print(f"ℹ️ Skipping greeting for user {user_id} (has existing anonymous messages)")
+            return {"messages": []}
 
         # Build a system prompt (personalized if fname known, generic otherwise)
         if fname:
@@ -441,6 +451,67 @@ async def chat_boot(
         raise HTTPException(
             status_code=500,
             detail="Failed to initialize chat. Please try again."
+        )
+
+
+# -----------------------
+# HTTP route: sync_anonymous_messages
+# -----------------------
+@app.post("/sync_anonymous_messages")
+async def sync_anonymous_messages(request: dict):
+    """
+    Sync messages from an anonymous session to a newly authenticated user's database.
+    Called automatically when a user logs in after chatting anonymously.
+    
+    Request body:
+    {
+        "user_id": "user_id_here",
+        "messages": [
+            {"role": "user", "content": "...", "user_id": "user_id"},
+            {"role": "ai", "content": "...", "sources": {...}, "followups": [...]}
+        ]
+    }
+    """
+    try:
+        user_id = request.get("user_id")
+        messages = request.get("messages", [])
+        
+        if not user_id:
+            raise HTTPException(status_code=400, detail="user_id is required")
+        
+        if not messages or len(messages) == 0:
+            return {"success": True, "synced": 0, "message": "No messages to sync"}
+        
+        print(f"🔄 Syncing {len(messages)} anonymous messages for user {user_id}")
+        
+        # Append messages to the user's conversation
+        try:
+            pg_append_messages(user_id, messages)
+            print(f"✅ Successfully synced {len(messages)} messages for user {user_id}")
+            
+            return {
+                "success": True,
+                "synced": len(messages),
+                "message": f"Successfully synced {len(messages)} messages"
+            }
+        except Exception as e:
+            print(f"❌ Error syncing messages to database: {e}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to sync messages: {str(e)}"
+            )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Unexpected error in sync_anonymous_messages: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to sync messages. Please try again."
         )
 
 
