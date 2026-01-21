@@ -100,42 +100,36 @@ export async function getCommunityBySlug(slug: string) {
     ),
 
     accessibility AS (
-        SELECT
-            ca.location_id,
-            json_build_object(
-            'coordinates', json_build_object(
-                'latitude', ca.latitude,
-                'longitude', ca.longitude
-            ),
-
-            'nearestMetro', json_build_object(
-                'name', ca.nearest_metro,
-                'distanceKm', ca.metro_distance_km
-            ),
-
-            'keyDistances', json_build_object(
-                'downtownKm', ca.distance_to_downtown_km,
-                'businessBayKm', ca.distance_to_business_bay_km,
-                'airportKm', ca.distance_to_airport_km
-            ),
-
-            'majorRoads', ca.major_roads,
-
-            -- ✅ THIS IS WHAT YOU WANT
-            'areaDistances', ca.accessibility_distances
-            ) AS accessibility
-        FROM community_accessibility ca
+      SELECT
+        ca.location_id,
+        json_build_object(
+          'coordinates', json_build_object(
+            'latitude', ca.latitude,
+            'longitude', ca.longitude
+          ),
+          'nearestMetro', json_build_object(
+            'name', ca.nearest_metro,
+            'distanceKm', ca.metro_distance_km
+          ),
+          'keyDistances', json_build_object(
+            'downtownKm', ca.distance_to_downtown_km,
+            'businessBayKm', ca.distance_to_business_bay_km,
+            'airportKm', ca.distance_to_airport_km
+          ),
+          'majorRoads', ca.major_roads,
+          'areaDistances', ca.accessibility_distances
+        ) AS accessibility
+      FROM community_accessibility ca
     )
 
-
     SELECT
-    bc.*,
-    COALESCE(img.images, '[]') AS images,
-    COALESCE(a.amenities, '[]') AS amenities,
-    COALESCE(r.roads, '[]') AS roads,
-    COALESCE(c.classifications, '[]') AS classifications,
-    COALESCE(n.narratives, '{}'::json) AS narratives,
-    acc.accessibility
+      bc.*,
+      COALESCE(img.images, '[]') AS images,
+      COALESCE(a.amenities, '[]') AS amenities,
+      COALESCE(r.roads, '[]') AS roads,
+      COALESCE(c.classifications, '[]') AS classifications,
+      COALESCE(n.narratives, '{}'::json) AS narratives,
+      acc.accessibility
     FROM base_community bc
     LEFT JOIN images img ON img.location_id = bc.location_id
     LEFT JOIN amenities a ON a.location_id = bc.location_id
@@ -143,7 +137,6 @@ export async function getCommunityBySlug(slug: string) {
     LEFT JOIN classifications c ON c.location_id = bc.location_id
     LEFT JOIN narratives n ON n.location_id = bc.location_id
     LEFT JOIN accessibility acc ON acc.location_id = bc.location_id;
-
   `);
 
   return result[0] ?? null;

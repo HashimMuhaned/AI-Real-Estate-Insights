@@ -13,7 +13,6 @@ const CommunitySubNav = () => {
     { name: "Road Locations", href: "#roads" },
     { name: "Description", href: "#description" },
     { name: "Location", href: "#location" },
-    { name: "Downloads", href: "#downloads" },
     { name: "Projects", href: "#projects" },
     { name: "Market Insights", href: "#market-insights" },
   ];

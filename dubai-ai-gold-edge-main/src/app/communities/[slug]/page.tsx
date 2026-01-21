@@ -2,12 +2,20 @@
 
 import React, { useState } from "react";
 import CommunitySubNav from "@/components/CommunitySubNavbar";
-import { ChevronLeft, ChevronRight, MapPin, Users, TrendingUp, Navigation } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  Users,
+  TrendingUp,
+  Navigation,
+  AlertCircle,
+} from "lucide-react";
 
 type PageProps = {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 };
 
 type CommunityImage = {
@@ -20,8 +28,10 @@ type CommunityImage = {
 
 type Narrative = {
   content: string;
-  confidenceScore?: number;
-  timeHorizon?: string;
+  confidenceScore: number | null;
+  timeHorizon: string | null;
+  generatedBy: string;
+  generatedAt: string;
 };
 
 type Accessibility = {
@@ -29,89 +39,149 @@ type Accessibility = {
     latitude: number;
     longitude: number;
   };
-  nearestMetro?: {
-    name: string;
-    distanceKm: number;
+  nearestMetro: {
+    name: string | null;
+    distanceKm: number | null;
   };
-  keyDistances?: {
+  keyDistances: {
     downtownKm: number;
     businessBayKm: number;
     airportKm: number;
   };
-  majorRoads?: string[];
-  areaDistances?: {
-    [key: string]: {
-      distance_km: number;
-      drive_time_min: number;
-    };
+  majorRoads: string[];
+  areaDistances: {
+    [key: string]: number;
   };
+};
+
+type Project = {
+  projectId: number;
+  projectName: string;
+  developer: {
+    id: number;
+    name: string;
+  } | null;
+  startingPrice: number | null;
+  downPaymentPercentage: number | null;
+  constructionPhase: string | null;
+  salesPhase: string | null;
+  deliveryDate: string | null;
+  stockAvailability: string | null;
+  hotnessLevel: number | null;
 };
 
 type Community = {
   location_id: number;
   name: string;
   slug: string;
-  level?: string;
+  level: string;
   images: CommunityImage[];
-  amenities: any[];
-  roads: any[];
-  classifications: any[];
-  description?: string;
-  lifestyle_summary?: string;
-  population_estimate?: number;
-  narratives?: {
+  amenities: { id: number; name: string }[];
+  roads: { id: number; name: string }[];
+  classifications: {
+    id: number;
+    title: string;
+    type: string;
+    description: string;
+  }[];
+  description: string | null;
+  lifestyle_summary: string | null;
+  population_estimate: number | null;
+  narratives: {
     overview?: Narrative;
-    investor_summary?: Narrative;
+    investor_verdict?: Narrative;
+    risks?: Narrative;
   };
-  accessibility?: Accessibility;
+  accessibility: Accessibility;
+  topProjects?: Project[];
 };
 
 export default function CommunityPageDetails({ params }: PageProps) {
-  const [community, setCommunity] = React.useState<Community | null>(null);
+  const { slug } = React.use(params);
+  const [community, setCommunity] = useState<Community | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = useState(true);
 
   React.useEffect(() => {
-    const fetchCommunity = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch(
-          `http://localhost:3000/api/communitiyDetails/${params.slug}`,
-          { cache: "no-store" }
-        );
-        
-        if (res.ok) {
-          const data = await res.json();
-          setCommunity(data);
+        setLoading(true);
+
+        const [communityRes, projectsRes] = await Promise.all([
+          fetch(`/api/communitiyDetails/${slug}`, {
+            cache: "no-store",
+          }),
+          fetch(`/api/community/${slug}/top-projects`, {
+            cache: "no-store",
+          }),
+        ]);
+
+        if (!communityRes.ok) {
+          throw new Error("Failed to fetch community");
         }
+
+        const communityData = await communityRes.json();
+
+        let projects: Project[] = [];
+
+        if (projectsRes.ok) {
+          const projectsData = await projectsRes.json();
+          projects = projectsData.projects || [];
+        }
+
+        setCommunity({
+          ...communityData,
+          topProjects: projects,
+        });
       } catch (error) {
-        console.error("Error fetching community:", error);
+        console.error("Error loading community page:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCommunity();
-  }, [params.slug]);
+    fetchData();
+  }, [slug]);
 
   if (loading) {
-    return <div className="min-h-screen pt-24 flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen pt-24 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading community details...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!community) {
-    return <div className="min-h-screen pt-24 flex items-center justify-center">Community not found</div>;
+    return (
+      <div className="min-h-screen pt-24 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <h2 className="text-2xl font-semibold mb-2">Community not found</h2>
+          <p className="text-muted-foreground">
+            The community you're looking for doesn't exist.
+          </p>
+        </div>
+      </div>
+    );
   }
 
-  const heroImage = community.images.find(img => img.isPrimary) || community.images[0];
-  const galleryImages = community.images.filter(img => img.mediaType === "gallery");
+  const heroImage =
+    community.images.find((img) => img.isPrimary) || community.images[0];
+  const galleryImages = community.images.filter(
+    (img) => img.mediaType === "gallery"
+  );
 
   const nextImage = () => {
-    setCurrentImageIndex((prev) => 
+    setCurrentImageIndex((prev) =>
       prev === galleryImages.length - 1 ? 0 : prev + 1
     );
   };
 
   const previousImage = () => {
-    setCurrentImageIndex((prev) => 
+    setCurrentImageIndex((prev) =>
       prev === 0 ? galleryImages.length - 1 : prev - 1
     );
   };
@@ -119,7 +189,7 @@ export default function CommunityPageDetails({ params }: PageProps) {
   return (
     <>
       <CommunitySubNav />
-      
+
       <div className="max-w-7xl mx-auto p-6 space-y-16 pt-24">
         {/* Hero Image */}
         {heroImage && (
@@ -131,7 +201,9 @@ export default function CommunityPageDetails({ params }: PageProps) {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
             <div className="absolute bottom-8 left-8">
-              <h1 className="text-5xl font-bold text-white mb-2">{community.name}</h1>
+              <h1 className="text-5xl font-bold text-white mb-2">
+                {community.name}
+              </h1>
               {community.lifestyle_summary && (
                 <p className="text-xl text-white/90 max-w-2xl">
                   {community.lifestyle_summary}
@@ -149,12 +221,16 @@ export default function CommunityPageDetails({ params }: PageProps) {
                 <Users className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Population Estimate</p>
-                <p className="text-2xl font-semibold">{community.population_estimate.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">
+                  Population Estimate
+                </p>
+                <p className="text-2xl font-semibold">
+                  {community.population_estimate.toLocaleString()}
+                </p>
               </div>
             </div>
           )}
-          
+
           {community.level && (
             <div className="bg-muted/30 rounded-lg p-6 flex items-center gap-4">
               <div className="bg-primary/10 p-3 rounded-full">
@@ -162,23 +238,30 @@ export default function CommunityPageDetails({ params }: PageProps) {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Level</p>
-                <p className="text-2xl font-semibold capitalize">{community.level}</p>
+                <p className="text-2xl font-semibold capitalize">
+                  {community.level}
+                </p>
               </div>
             </div>
           )}
 
-          {community.accessibility?.nearestMetro && (
-            <div className="bg-muted/30 rounded-lg p-6 flex items-center gap-4">
-              <div className="bg-primary/10 p-3 rounded-full">
-                <Navigation className="w-6 h-6 text-primary" />
+          {community.accessibility?.nearestMetro?.name &&
+            community.accessibility?.nearestMetro?.distanceKm && (
+              <div className="bg-muted/30 rounded-lg p-6 flex items-center gap-4">
+                <div className="bg-primary/10 p-3 rounded-full">
+                  <Navigation className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Nearest Metro</p>
+                  <p className="text-2xl font-semibold">
+                    {community.accessibility.nearestMetro.name}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {community.accessibility.nearestMetro.distanceKm} km away
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Nearest Metro</p>
-                <p className="text-2xl font-semibold">{community.accessibility.nearestMetro.name}</p>
-                <p className="text-sm text-muted-foreground">{community.accessibility.nearestMetro.distanceKm} km away</p>
-              </div>
-            </div>
-          )}
+            )}
         </section>
 
         {/* Overview Narrative */}
@@ -190,13 +273,12 @@ export default function CommunityPageDetails({ params }: PageProps) {
                 <div className="flex items-center gap-2 text-sm">
                   <TrendingUp className="w-4 h-4 text-green-500" />
                   <span className="text-muted-foreground">
-                    Confidence: {(community.narratives.overview.confidenceScore * 100).toFixed(0)}%
+                    Confidence:{" "}
+                    {(
+                      community.narratives.overview.confidenceScore * 100
+                    ).toFixed(0)}
+                    %
                   </span>
-                  {community.narratives.overview.timeHorizon && (
-                    <span className="ml-2 px-2 py-1 bg-muted rounded text-xs">
-                      {community.narratives.overview.timeHorizon}
-                    </span>
-                  )}
                 </div>
               )}
             </div>
@@ -208,23 +290,54 @@ export default function CommunityPageDetails({ params }: PageProps) {
           </section>
         )}
 
-        {/* Investor Summary */}
-        {community.narratives?.investor_summary && (
-          <section id="investor-summary" className="scroll-mt-32">
+        {/* Investor Verdict */}
+        {community.narratives?.investor_verdict && (
+          <section id="investor-verdict" className="scroll-mt-32">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-3xl font-semibold">Investor Summary</h2>
-              {community.narratives.investor_summary.confidenceScore && (
+              <h2 className="text-3xl font-semibold">Investor Verdict</h2>
+              {community.narratives.investor_verdict.confidenceScore && (
                 <div className="flex items-center gap-2 text-sm">
                   <TrendingUp className="w-4 h-4 text-green-500" />
                   <span className="text-muted-foreground">
-                    Confidence: {(community.narratives.investor_summary.confidenceScore * 100).toFixed(0)}%
+                    Confidence:{" "}
+                    {(
+                      community.narratives.investor_verdict.confidenceScore *
+                      100
+                    ).toFixed(0)}
+                    %
                   </span>
                 </div>
               )}
             </div>
             <div className="bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-lg p-6">
               <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-line">
-                {community.narratives.investor_summary.content}
+                {community.narratives.investor_verdict.content}
+              </p>
+            </div>
+          </section>
+        )}
+
+        {/* Risks */}
+        {community.narratives?.risks && (
+          <section id="risks" className="scroll-mt-32">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-semibold">Risks</h2>
+              {community.narratives.risks.confidenceScore && (
+                <div className="flex items-center gap-2 text-sm">
+                  <AlertCircle className="w-4 h-4 text-amber-500" />
+                  <span className="text-muted-foreground">
+                    Confidence:{" "}
+                    {(community.narratives.risks.confidenceScore * 100).toFixed(
+                      0
+                    )}
+                    %
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="bg-gradient-to-br from-amber-500/5 to-amber-500/10 border border-amber-500/20 rounded-lg p-6">
+              <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-line">
+                {community.narratives.risks.content}
               </p>
             </div>
           </section>
@@ -234,7 +347,7 @@ export default function CommunityPageDetails({ params }: PageProps) {
         {galleryImages.length > 0 && (
           <section id="gallery" className="scroll-mt-32">
             <h2 className="text-3xl font-semibold mb-6">Gallery</h2>
-            
+
             {/* Main Gallery Carousel */}
             <div className="relative w-full h-[400px] rounded-xl overflow-hidden shadow-xl mb-4">
               <img
@@ -242,7 +355,7 @@ export default function CommunityPageDetails({ params }: PageProps) {
                 alt={`${community.name} - Image ${currentImageIndex + 1}`}
                 className="w-full h-full object-cover"
               />
-              
+
               {/* Navigation Buttons */}
               {galleryImages.length > 1 && (
                 <>
@@ -260,7 +373,7 @@ export default function CommunityPageDetails({ params }: PageProps) {
                   >
                     <ChevronRight className="w-6 h-6" />
                   </button>
-                  
+
                   {/* Image Counter */}
                   <div className="absolute bottom-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
                     {currentImageIndex + 1} / {galleryImages.length}
@@ -298,12 +411,10 @@ export default function CommunityPageDetails({ params }: PageProps) {
         {community.description && (
           <section id="description" className="scroll-mt-32">
             <h2 className="text-3xl font-semibold mb-6">Description</h2>
-            <div className="prose prose-lg max-w-none">
-              <div className="bg-muted/30 rounded-lg p-6">
-                <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
-                  {community.description}
-                </p>
-              </div>
+            <div className="bg-muted/30 rounded-lg p-6">
+              <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                {community.description}
+              </p>
             </div>
           </section>
         )}
@@ -313,7 +424,7 @@ export default function CommunityPageDetails({ params }: PageProps) {
           <section id="accessibility" className="scroll-mt-32">
             <h2 className="text-3xl font-semibold mb-6">Accessibility</h2>
             <div className="space-y-6">
-              {/* Coordinates and Metro in a row */}
+              {/* Coordinates and Metro */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Location Coordinates */}
                 <div className="bg-muted/30 rounded-lg p-6">
@@ -323,31 +434,36 @@ export default function CommunityPageDetails({ params }: PageProps) {
                   </h3>
                   <div className="space-y-2">
                     <p className="text-muted-foreground">
-                      <span className="font-medium">Latitude:</span> {community.accessibility.coordinates.latitude}
+                      <span className="font-medium">Latitude:</span>{" "}
+                      {community.accessibility.coordinates.latitude}
                     </p>
                     <p className="text-muted-foreground">
-                      <span className="font-medium">Longitude:</span> {community.accessibility.coordinates.longitude}
+                      <span className="font-medium">Longitude:</span>{" "}
+                      {community.accessibility.coordinates.longitude}
                     </p>
                   </div>
                 </div>
 
                 {/* Metro Information */}
-                {community.accessibility.nearestMetro && (
-                  <div className="bg-muted/30 rounded-lg p-6">
-                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                      <Navigation className="w-5 h-5" />
-                      Metro Access
-                    </h3>
-                    <div className="space-y-2">
-                      <p className="text-muted-foreground">
-                        <span className="font-medium">Nearest Station:</span> {community.accessibility.nearestMetro.name}
-                      </p>
-                      <p className="text-muted-foreground">
-                        <span className="font-medium">Distance:</span> {community.accessibility.nearestMetro.distanceKm} km
-                      </p>
+                {community.accessibility.nearestMetro?.name &&
+                  community.accessibility.nearestMetro?.distanceKm && (
+                    <div className="bg-muted/30 rounded-lg p-6">
+                      <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <Navigation className="w-5 h-5" />
+                        Metro Access
+                      </h3>
+                      <div className="space-y-2">
+                        <p className="text-muted-foreground">
+                          <span className="font-medium">Nearest Station:</span>{" "}
+                          {community.accessibility.nearestMetro.name}
+                        </p>
+                        <p className="text-muted-foreground">
+                          <span className="font-medium">Distance:</span>{" "}
+                          {community.accessibility.nearestMetro.distanceKm} km
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
 
               {/* Key Distances */}
@@ -356,57 +472,78 @@ export default function CommunityPageDetails({ params }: PageProps) {
                   <h3 className="text-xl font-semibold mb-4">Key Distances</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="flex items-center justify-between p-3 bg-background rounded-lg">
-                      <span className="text-muted-foreground">Downtown Dubai</span>
-                      <span className="font-semibold">{community.accessibility.keyDistances.downtownKm} km</span>
+                      <span className="text-muted-foreground">
+                        Downtown Dubai
+                      </span>
+                      <span className="font-semibold">
+                        {community.accessibility.keyDistances.downtownKm} km
+                      </span>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-background rounded-lg">
-                      <span className="text-muted-foreground">Business Bay</span>
-                      <span className="font-semibold">{community.accessibility.keyDistances.businessBayKm} km</span>
+                      <span className="text-muted-foreground">
+                        Business Bay
+                      </span>
+                      <span className="font-semibold">
+                        {community.accessibility.keyDistances.businessBayKm} km
+                      </span>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-background rounded-lg">
                       <span className="text-muted-foreground">Airport</span>
-                      <span className="font-semibold">{community.accessibility.keyDistances.airportKm} km</span>
+                      <span className="font-semibold">
+                        {community.accessibility.keyDistances.airportKm} km
+                      </span>
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Major Roads */}
-              {community.accessibility.majorRoads && community.accessibility.majorRoads.length > 0 && (
-                <div className="bg-muted/30 rounded-lg p-6">
-                  <h3 className="text-xl font-semibold mb-4">Major Roads</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {community.accessibility.majorRoads.map((road, index) => (
-                      <span
-                        key={index}
-                        className="px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-medium"
-                      >
-                        {road}
-                      </span>
-                    ))}
+              {community.accessibility.majorRoads &&
+                community.accessibility.majorRoads.length > 0 && (
+                  <div className="bg-muted/30 rounded-lg p-6">
+                    <h3 className="text-xl font-semibold mb-4">Major Roads</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {community.accessibility.majorRoads.map((road, index) => (
+                        <span
+                          key={index}
+                          className="px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-medium"
+                        >
+                          {road}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Area Distances */}
-              {community.accessibility.areaDistances && Object.keys(community.accessibility.areaDistances).length > 0 && (
-                <div className="bg-muted/30 rounded-lg p-6">
-                  <h3 className="text-xl font-semibold mb-4">Distances to Other Areas</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {Object.entries(community.accessibility.areaDistances).map(([area, distance]) => (
-                      <div key={area} className="p-4 bg-background rounded-lg">
-                        <p className="font-semibold capitalize mb-2">
-                          {area.replace(/_/g, ' ')}
-                        </p>
-                        <div className="space-y-1 text-sm text-muted-foreground">
-                          <p>Distance: {distance.distance_km} km</p>
-                          <p>Drive Time: ~{distance.drive_time_min} min</p>
-                        </div>
-                      </div>
-                    ))}
+              {community.accessibility.areaDistances &&
+                Object.keys(community.accessibility.areaDistances).length >
+                  0 && (
+                  <div className="bg-muted/30 rounded-lg p-6">
+                    <h3 className="text-xl font-semibold mb-4">
+                      Distances to Key Areas
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                      {Object.entries(community.accessibility.areaDistances)
+                        .sort(([, a], [, b]) => a - b)
+                        .map(([area, distance]) => (
+                          <div
+                            key={area}
+                            className="flex items-center justify-between p-3 bg-background rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <span className="text-sm capitalize text-muted-foreground">
+                              {area
+                                .replace(/distance_to_|_km/g, "")
+                                .replace(/_/g, " ")}
+                            </span>
+                            <span className="font-semibold text-sm ml-2">
+                              {distance} km
+                            </span>
+                          </div>
+                        ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           </section>
         )}
@@ -414,11 +551,18 @@ export default function CommunityPageDetails({ params }: PageProps) {
         {/* Special Classifications Section */}
         {community.classifications && community.classifications.length > 0 && (
           <section id="classifications" className="scroll-mt-32">
-            <h2 className="text-3xl font-semibold mb-6">Special Classifications</h2>
+            <h2 className="text-3xl font-semibold mb-6">
+              Special Classifications
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {community.classifications.map((classification: any) => (
-                <div key={classification.id} className="bg-gradient-to-br from-accent/5 to-accent/10 border border-accent/20 rounded-lg p-6 hover:shadow-md transition-all">
-                  <h3 className="font-semibold text-lg mb-2">{classification.title}</h3>
+              {community.classifications.map((classification) => (
+                <div
+                  key={classification.id}
+                  className="bg-gradient-to-br from-accent/5 to-accent/10 border border-accent/20 rounded-lg p-6 hover:shadow-md transition-all"
+                >
+                  <h3 className="font-semibold text-lg mb-2">
+                    {classification.title}
+                  </h3>
                   {classification.type && (
                     <span className="inline-block px-2 py-1 bg-primary/10 text-primary text-xs rounded-full mb-2">
                       {classification.type}
@@ -440,12 +584,12 @@ export default function CommunityPageDetails({ params }: PageProps) {
           <section id="amenities" className="scroll-mt-32">
             <h2 className="text-3xl font-semibold mb-6">Amenities</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {community.amenities.map((a: any) => (
+              {community.amenities.map((amenity) => (
                 <div
-                  key={a.id}
+                  key={amenity.id}
                   className="bg-muted/30 rounded-lg p-4 text-center hover:bg-muted/50 transition-colors"
                 >
-                  {a.name}
+                  <p className="font-medium">{amenity.name}</p>
                 </div>
               ))}
             </div>
@@ -456,13 +600,13 @@ export default function CommunityPageDetails({ params }: PageProps) {
         {community.roads && community.roads.length > 0 && (
           <section id="roads" className="scroll-mt-32">
             <h2 className="text-3xl font-semibold mb-6">Road Locations</h2>
-            <div className="space-y-3">
-              {community.roads.map((r: any) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {community.roads.map((road) => (
                 <div
-                  key={r.id}
+                  key={road.id}
                   className="bg-muted/30 rounded-lg p-4 hover:bg-muted/50 transition-colors"
                 >
-                  {r.name}
+                  <p className="font-medium">{road.name}</p>
                 </div>
               ))}
             </div>
@@ -471,41 +615,112 @@ export default function CommunityPageDetails({ params }: PageProps) {
 
         {/* Location Map Placeholder */}
         <section id="location" className="scroll-mt-32">
-          <h2 className="text-3xl font-semibold mb-6">Location</h2>
+          <h2 className="text-3xl font-semibold mb-6">Location Map</h2>
           <div className="bg-muted/30 rounded-lg p-6 h-96 flex items-center justify-center">
             <div className="text-center">
               <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">Map will be displayed here</p>
+              <p className="text-muted-foreground mb-2">
+                Interactive map will be displayed here
+              </p>
               {community.accessibility?.coordinates && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  {community.accessibility.coordinates.latitude}, {community.accessibility.coordinates.longitude}
+                <p className="text-sm text-muted-foreground">
+                  {community.accessibility.coordinates.latitude},{" "}
+                  {community.accessibility.coordinates.longitude}
                 </p>
               )}
             </div>
           </div>
         </section>
 
-        {/* Downloads Section */}
-        <section id="downloads" className="scroll-mt-32">
-          <h2 className="text-3xl font-semibold mb-6">Downloads</h2>
-          <div className="bg-muted/30 rounded-lg p-6">
-            <p className="text-muted-foreground">Download resources will be available here</p>
-          </div>
-        </section>
-
         {/* Projects Section */}
         <section id="projects" className="scroll-mt-32">
-          <h2 className="text-3xl font-semibold mb-6">Projects</h2>
-          <div className="bg-muted/30 rounded-lg p-6">
-            <p className="text-muted-foreground">Related projects will be displayed here</p>
-          </div>
+          <h2 className="text-3xl font-semibold mb-6">Related Projects</h2>
+
+          {!community?.topProjects || community.topProjects.length === 0 ? (
+            <div className="bg-muted/30 rounded-lg p-6">
+              <p className="text-muted-foreground">
+                No projects available for this community.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted">
+                  <tr className="text-left">
+                    <th className="px-4 py-3 font-medium">Project</th>
+                    <th className="px-4 py-3 font-medium">Developer</th>
+                    <th className="px-4 py-3 font-medium">Starting Price</th>
+                    <th className="px-4 py-3 font-medium">Down Payment</th>
+                    <th className="px-4 py-3 font-medium">Phase</th>
+                    <th className="px-4 py-3 font-medium">Delivery</th>
+                    <th className="px-4 py-3 font-medium">Stock</th>
+                    <th className="px-4 py-3 font-medium">🔥 Hotness</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {community.topProjects.map((project) => (
+                    <tr
+                      key={project.projectId}
+                      className="border-t hover:bg-muted/40 transition"
+                    >
+                      <td className="px-4 py-3 font-medium">
+                        {project.projectName}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        {project.developer?.name ?? "—"}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        {project.startingPrice
+                          ? `AED ${project.startingPrice.toLocaleString()}`
+                          : "—"}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        {project.downPaymentPercentage
+                          ? `${project.downPaymentPercentage}%`
+                          : "—"}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <div className="text-xs">
+                          <div>
+                            Construction: {project.constructionPhase ?? "—"}
+                          </div>
+                          <div>Sales: {project.salesPhase ?? "—"}</div>
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3">
+                        {project.deliveryDate
+                          ? new Date(project.deliveryDate).toLocaleDateString()
+                          : "—"}
+                      </td>
+
+                      <td className="px-4 py-3 capitalize">
+                        {project.stockAvailability ?? "—"}
+                      </td>
+
+                      <td className="px-4 py-3 font-semibold">
+                        {project.hotnessLevel ?? "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         {/* Market Insights Section */}
         <section id="market-insights" className="scroll-mt-32">
           <h2 className="text-3xl font-semibold mb-6">Market Insights</h2>
           <div className="bg-muted/30 rounded-lg p-6">
-            <p className="text-muted-foreground">Market data and insights will be available here</p>
+            <p className="text-muted-foreground">
+              Market data and insights will be available here
+            </p>
           </div>
         </section>
       </div>
