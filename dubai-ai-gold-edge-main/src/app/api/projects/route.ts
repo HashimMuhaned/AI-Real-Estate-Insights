@@ -19,9 +19,12 @@ export async function GET(req: Request) {
     propertyType: searchParams.get("propertyType"),
     delivery: searchParams.get("delivery"),
 
-    // ✅ ADD THIS
     developer: searchParams.get("developer")
       ? Number(searchParams.get("developer"))
+      : null,
+    community: searchParams.get("community"),
+    hotnessMin: searchParams.get("hotnessMin")
+      ? Number(searchParams.get("hotnessMin"))
       : null,
   };
 
@@ -37,4 +40,3 @@ export async function GET(req: Request) {
     hasMore: projects.length === limit,
   });
 }
-

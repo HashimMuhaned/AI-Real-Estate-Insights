@@ -9,7 +9,11 @@ import {
   Send,
   SlidersHorizontal,
   Building2,
+  Flame,
 } from "lucide-react";
+import formatPrice from "@/helpers/FormatPrice";
+import Link from "next/link";
+import { slugify } from "@/lib/slugify";
 
 type Developer = {
   id: number;
@@ -28,24 +32,10 @@ type Project = {
   deliveryDate?: string;
   amenities: string[];
   developer: Developer;
+  hotness?: number;
 };
 
 const LIMIT = 12;
-
-// Helper function to format price
-function formatPrice(price?: number): string {
-  if (!price) return "N/A";
-
-  if (price >= 1000000) {
-    const millions = price / 1000000;
-    return `${millions % 1 === 0 ? millions : millions.toFixed(1)}M`;
-  } else if (price >= 1000) {
-    const thousands = price / 1000;
-    return `${thousands % 1 === 0 ? thousands : thousands.toFixed(1)}K`;
-  }
-
-  return price.toLocaleString();
-}
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -60,6 +50,7 @@ export default function ProjectsPage() {
   const [propertyType, setPropertyType] = useState("all");
   const [deliveryStatus, setDeliveryStatus] = useState("all");
   const [selectedDeveloper, setSelectedDeveloper] = useState("all");
+  const [hotnessLevel, setHotnessLevel] = useState("all");
   const [showAIModal, setShowAIModal] = useState(false);
   const [aiQuery, setAiQuery] = useState("");
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -80,7 +71,8 @@ export default function ProjectsPage() {
     deliveryStatus !== "all" ||
     sortBy !== "recent" ||
     query !== "" ||
-    selectedDeveloper !== "all";
+    selectedDeveloper !== "all" ||
+    hotnessLevel !== "all";
 
   // Fetch developers list
   useEffect(() => {
@@ -127,6 +119,9 @@ export default function ProjectsPage() {
     if (selectedDeveloper !== "all") {
       params.set("developer", selectedDeveloper);
       console.log("Loading more with developer filter:", selectedDeveloper);
+    }
+    if (hotnessLevel !== "all") {
+      params.set("hotnessMin", hotnessLevel);
     }
 
     if (priceRange === "under1m") {
@@ -180,6 +175,7 @@ export default function ProjectsPage() {
       if (deliveryStatus !== "all") params.set("delivery", deliveryStatus);
       if (selectedDeveloper !== "all")
         params.set("developer", selectedDeveloper);
+      if (hotnessLevel !== "all") params.set("hotnessMin", hotnessLevel);
 
       if (priceRange === "under1m") {
         params.set("priceMax", "999999");
@@ -217,6 +213,7 @@ export default function ProjectsPage() {
     propertyType,
     deliveryStatus,
     selectedDeveloper,
+    hotnessLevel,
     isClearing,
   ]);
 
@@ -245,6 +242,7 @@ export default function ProjectsPage() {
     propertyType,
     deliveryStatus,
     selectedDeveloper,
+    hotnessLevel,
   ]);
 
   const filtered = projects;
@@ -258,6 +256,7 @@ export default function ProjectsPage() {
     setDeliveryStatus("all");
     setSortBy("recent");
     setSelectedDeveloper("all");
+    setHotnessLevel("all");
     setDeveloperSearch("");
 
     setProjects([]);
@@ -317,7 +316,7 @@ export default function ProjectsPage() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* SIDEBAR - Desktop */}
           <aside className="hidden lg:block lg:w-80 shrink-0">
-            <div className="sticky top-20 bg-card rounded-2xl border shadow-lg p-5">
+            <div className="sticky top-20 bg-card rounded-2xl border shadow-lg p-5 max-h-[calc(100vh-6rem)] overflow-y-auto">
               <FilterSidebarContent
                 query={query}
                 setQuery={setQuery}
@@ -332,6 +331,8 @@ export default function ProjectsPage() {
                 selectedDeveloper={selectedDeveloper}
                 setSelectedDeveloper={setSelectedDeveloper}
                 selectedDeveloperName={selectedDeveloperName}
+                hotnessLevel={hotnessLevel}
+                setHotnessLevel={setHotnessLevel}
                 developers={filteredDevelopers}
                 developerSearch={developerSearch}
                 setDeveloperSearch={setDeveloperSearch}
@@ -363,6 +364,7 @@ export default function ProjectsPage() {
                       deliveryStatus !== "all",
                       sortBy !== "recent",
                       selectedDeveloper !== "all",
+                      hotnessLevel !== "all",
                     ].filter(Boolean).length
                   }
                 </span>
@@ -370,7 +372,7 @@ export default function ProjectsPage() {
             </button>
 
             {showMobileFilters && (
-              <div className="mt-4 bg-card rounded-2xl border shadow-lg p-6">
+              <div className="mt-4 bg-card rounded-2xl border shadow-lg p-6 max-h-[80vh] overflow-y-auto">
                 <FilterSidebarContent
                   query={query}
                   setQuery={setQuery}
@@ -385,6 +387,8 @@ export default function ProjectsPage() {
                   selectedDeveloper={selectedDeveloper}
                   setSelectedDeveloper={setSelectedDeveloper}
                   selectedDeveloperName={selectedDeveloperName}
+                  hotnessLevel={hotnessLevel}
+                  setHotnessLevel={setHotnessLevel}
                   developers={filteredDevelopers}
                   developerSearch={developerSearch}
                   setDeveloperSearch={setDeveloperSearch}
@@ -434,12 +438,34 @@ export default function ProjectsPage() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
                   {filtered.map((p) => (
                     <div
                       key={p.id}
-                      className="rounded-xl border overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group bg-card"
+                      className="rounded-xl border overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group bg-card relative flex flex-col h-full"
                     >
+                      {/* Hotness Badge */}
+                      {p.hotness !== undefined &&
+                        p.hotness !== null &&
+                        p.hotness > 0 &&
+                        p.hotness >= 50 && (
+                          <div className="absolute top-3 right-3 z-10 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 border border-orange-200">
+                            <Flame
+                              className={`w-4 h-4 ${
+                                p.hotness >= 80
+                                  ? "text-red-500"
+                                  : p.hotness >= 60
+                                  ? "text-orange-500"
+                                  : "text-yellow-500"
+                              }`}
+                            />
+                            <span className="text-xs font-bold text-gray-900">
+                              {p.hotness}/100
+                            </span>
+                          </div>
+                        )}
+
+                      {/* Image */}
                       <div className="h-48 w-full overflow-hidden bg-muted">
                         <img
                           src={p.image || "/placeholder.jpg"}
@@ -448,52 +474,64 @@ export default function ProjectsPage() {
                         />
                       </div>
 
-                      <div className="p-5 space-y-2">
-                        <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">
-                          {p.name}
-                        </h3>
+                      {/* Card Content */}
+                      <div className="p-5 flex flex-col flex-1">
+                        <div className="space-y-2 flex-1">
+                          <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">
+                            {p.name}
+                          </h3>
 
-                        {/* Developer */}
-                        <div className="flex items-center gap-2">
-                          <Building2 className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground font-medium">
-                            {p.developer.name}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground font-medium">
+                              {p.developer.name}
+                            </span>
+                          </div>
+
+                          <p className="text-sm text-muted-foreground">
+                            {p.propertyTypes.join(", ")}
+                          </p>
+
+                          <p className="font-medium">
+                            Starting from{" "}
+                            <span className="text-primary text-lg font-bold">
+                              AED {formatPrice(p.startingPrice)}
+                            </span>
+                          </p>
+
+                          <p className="text-sm">
+                            Down payment: {p.downPayment ?? "-"}%
+                          </p>
+
+                          <p className="text-sm">
+                            Delivery:{" "}
+                            {p.deliveryDate
+                              ? new Date(p.deliveryDate).toLocaleDateString()
+                              : "TBA"}
+                          </p>
+
+                          <p className="text-sm">Stock: {p.stock ?? "N/A"}</p>
+
+                          <div className="flex flex-wrap gap-2 pt-2">
+                            {p.amenities.slice(0, 5).map((a) => (
+                              <span
+                                key={a}
+                                className="text-xs bg-muted px-2 py-1 rounded"
+                              >
+                                {a}
+                              </span>
+                            ))}
+                          </div>
                         </div>
 
-                        <p className="text-sm text-muted-foreground">
-                          {p.propertyTypes.join(", ")}
-                        </p>
-
-                        <p className="font-medium">
-                          Starting from{" "}
-                          <span className="text-primary text-lg font-bold">
-                            AED {formatPrice(p.startingPrice)}
-                          </span>
-                        </p>
-
-                        <p className="text-sm">
-                          Down payment: {p.downPayment ?? "-"}%
-                        </p>
-
-                        <p className="text-sm">
-                          Delivery:{" "}
-                          {p.deliveryDate
-                            ? new Date(p.deliveryDate).toLocaleDateString()
-                            : "TBA"}
-                        </p>
-
-                        <p className="text-sm">Stock: {p.stock ?? "N/A"}</p>
-
-                        <div className="flex flex-wrap gap-2 pt-2">
-                          {p.amenities.slice(0, 5).map((a) => (
-                            <span
-                              key={a}
-                              className="text-xs bg-muted px-2 py-1 rounded"
-                            >
-                              {a}
-                            </span>
-                          ))}
+                        {/* Button always at bottom */}
+                        <div className="pt-3">
+                          <Link
+                            href={`/projects/${slugify(p.name)}`}
+                            className="block w-full text-center rounded-lg bg-primary text-primary-foreground py-3 text-sm font-medium hover:bg-primary/90 transition-all"
+                          >
+                            View Project Details
+                          </Link>
                         </div>
                       </div>
                     </div>
@@ -619,6 +657,8 @@ function FilterSidebarContent({
   selectedDeveloper,
   setSelectedDeveloper,
   selectedDeveloperName,
+  hotnessLevel,
+  setHotnessLevel,
   developers,
   developerSearch,
   setDeveloperSearch,
@@ -642,6 +682,8 @@ function FilterSidebarContent({
   selectedDeveloper: string;
   setSelectedDeveloper: (d: string) => void;
   selectedDeveloperName: string;
+  hotnessLevel: string;
+  setHotnessLevel: (h: string) => void;
   developers: Developer[];
   developerSearch: string;
   setDeveloperSearch: (s: string) => void;
@@ -679,7 +721,7 @@ function FilterSidebarContent({
       <div className="border-t"></div>
 
       {/* Sort By */}
-      <div className="space-y-2">
+      {/* <div className="space-y-2">
         <label className="font-semibold text-sm flex items-center gap-2">
           <div className="w-1 h-4 bg-primary rounded-full"></div>
           Sort By
@@ -694,6 +736,29 @@ function FilterSidebarContent({
             <option value="price-low">Price: Low to High</option>
             <option value="price-high">Price: High to Low</option>
             <option value="delivery">Delivery Date</option>
+            <option value="hotness">Hotness Level</option>
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        </div>
+      </div> */}
+
+      {/* Hotness Filter */}
+      <div className="space-y-2">
+        <label className="font-semibold text-sm flex items-center gap-2">
+          <Flame className="w-4 h-4 text-orange-500" />
+          Hotness Level
+        </label>
+        <div className="relative">
+          <select
+            value={hotnessLevel}
+            onChange={(e) => setHotnessLevel(e.target.value)}
+            className="w-full appearance-none px-3 py-2.5 pr-10 rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background cursor-pointer transition-all text-sm"
+          >
+            <option value="all">All Projects</option>
+            <option value="80">🔥 Very Hot (80+)</option>
+            <option value="60">🔥 Hot (60+)</option>
+            <option value="40">🔥 Warm (40+)</option>
+            <option value="1">🔥 Any Level</option>
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
         </div>
@@ -836,7 +901,7 @@ function FilterSidebarContent({
       {/* Active Filters */}
       {hasActiveFilters && (
         <>
-          <div className="border-t"></div>
+          <div className="border-t pt-3"></div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">
@@ -907,6 +972,17 @@ function FilterSidebarContent({
                     : selectedDeveloperName}
                   <button
                     onClick={() => setSelectedDeveloper("all")}
+                    className="hover:bg-primary/20 rounded-full p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {hotnessLevel !== "all" && (
+                <span className="px-2.5 py-1 bg-primary/10 text-primary rounded-full text-xs flex items-center gap-1">
+                  🔥 {hotnessLevel}+
+                  <button
+                    onClick={() => setHotnessLevel("all")}
                     className="hover:bg-primary/20 rounded-full p-0.5"
                   >
                     <X className="w-3 h-3" />

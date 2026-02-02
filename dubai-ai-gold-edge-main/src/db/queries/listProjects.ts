@@ -1,4 +1,5 @@
 import { db } from "@/db";
+// import { db_demo_projects } from "@/db";
 import { sql } from "drizzle-orm";
 
 type RawRow = {
@@ -15,6 +16,7 @@ type RawRow = {
   developerId: number | null;
   developerName: string | null;
   developerLogo: string | null;
+  hotness: number | null;
 };
 
 export async function listProjects({
@@ -32,10 +34,22 @@ export async function listProjects({
     priceMax?: number | null;
     propertyType?: string | null;
     delivery?: string | null;
+    community?: string | null;
+    hotnessMin?: number | null;
   };
 }) {
   const where = sql`
   WHERE 1=1
+  ${
+    filters.community
+      ? sql`AND EXISTS (
+          SELECT 1
+          FROM locations l
+          WHERE l.location_id = p.location_id
+            AND l.slug = ${filters.community}
+        )`
+      : sql``
+  }
   ${filters.q ? sql`AND p.project_name ILIKE ${"%" + filters.q + "%"}` : sql``}
 
   ${
@@ -56,6 +70,11 @@ export async function listProjects({
 
   ${filters.priceMin ? sql`AND p.starting_price >= ${filters.priceMin}` : sql``}
   ${filters.priceMax ? sql`AND p.starting_price <= ${filters.priceMax}` : sql``}
+  ${
+    filters.hotnessMin
+      ? sql`AND p.hotness_level >= ${filters.hotnessMin}`
+      : sql``
+  }
 
   ${
     filters.propertyType
@@ -78,6 +97,8 @@ export async function listProjects({
       ? sql`ORDER BY p.starting_price DESC NULLS LAST`
       : filters.sort === "delivery"
       ? sql`ORDER BY p.delivery_date ASC NULLS LAST`
+      : filters.sort === "hotness" // ✅ NEW
+      ? sql`ORDER BY p.hotness_level DESC NULLS LAST`
       : sql`ORDER BY p.scraped_at DESC, p.project_id DESC`;
 
   const rows = await db.execute<RawRow>(sql`
@@ -96,6 +117,7 @@ export async function listProjects({
     fp.down_payment_percentage AS "downPayment",
     fp.stock_availability AS stock,
     fp.delivery_date AS "deliveryDate",
+    fp.hotness_level AS hotness,
 
     d.developer_id AS "developerId",
     d.name AS "developerName",
@@ -124,6 +146,7 @@ export async function listProjects({
         stock: r.stock,
         deliveryDate: r.deliveryDate,
         image: r.image,
+        hotness: r.hotness,
         developer: r.developerId
           ? {
               id: r.developerId,

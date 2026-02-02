@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 // import { signIn } from "next-auth/react";
 import AuthButtons from "@/components/auth/AuthButtons";
+import Link from "next/link";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -17,7 +18,7 @@ const Navbar = () => {
     pathname === "/" || 
     pathname === "/explore-areas" || 
     pathname.startsWith("/area-insight-") ||
-    pathname === "/communities" ||
+    pathname.startsWith("/communities") ||
     pathname === "/projects";
 
   useEffect(() => {
@@ -63,6 +64,7 @@ const Navbar = () => {
               isWhiteNavPage && !isScrolled ? "text-white" : "text-foreground"
             }`}>
               {/* DXB AI */}
+              <Link href={`/`}>Home</Link>
             </h1>
           </div>
 

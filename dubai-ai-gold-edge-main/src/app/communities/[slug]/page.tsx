@@ -11,6 +11,18 @@ import {
   Navigation,
   AlertCircle,
 } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import formatPrice from "@/helpers/FormatPrice";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 type PageProps = {
   params: Promise<{
@@ -633,86 +645,122 @@ export default function CommunityPageDetails({ params }: PageProps) {
         </section>
 
         {/* Projects Section */}
-        <section id="projects" className="scroll-mt-32">
-          <h2 className="text-3xl font-semibold mb-6">Related Projects</h2>
+        <div className="w-full overflow-x-auto">
+          <div className="min-w-[900px]">
+            <section id="projects" className="scroll-mt-32">
+              <h2 className="text-3xl font-semibold mb-6">Related Projects</h2>
 
-          {!community?.topProjects || community.topProjects.length === 0 ? (
-            <div className="bg-muted/30 rounded-lg p-6">
-              <p className="text-muted-foreground">
-                No projects available for this community.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full text-sm">
-                <thead className="bg-muted">
-                  <tr className="text-left">
-                    <th className="px-4 py-3 font-medium">Project</th>
-                    <th className="px-4 py-3 font-medium">Developer</th>
-                    <th className="px-4 py-3 font-medium">Starting Price</th>
-                    <th className="px-4 py-3 font-medium">Down Payment</th>
-                    <th className="px-4 py-3 font-medium">Phase</th>
-                    <th className="px-4 py-3 font-medium">Delivery</th>
-                    <th className="px-4 py-3 font-medium">Stock</th>
-                    <th className="px-4 py-3 font-medium">🔥 Hotness</th>
-                  </tr>
-                </thead>
+              {!community?.topProjects || community.topProjects.length === 0 ? (
+                <div className="bg-muted/30 rounded-lg p-6">
+                  <p className="text-muted-foreground">
+                    No projects available for this community.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-xl border bg-background overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Project</TableHead>
+                        <TableHead>Developer</TableHead>
+                        <TableHead>Starting Price</TableHead>
+                        <TableHead>Down Payment</TableHead>
+                        <TableHead>Phase</TableHead>
+                        <TableHead>Delivery</TableHead>
+                        <TableHead>Stock</TableHead>
+                        <TableHead>🔥 Hotness</TableHead>
+                      </TableRow>
+                    </TableHeader>
 
-                <tbody>
-                  {community.topProjects.map((project) => (
-                    <tr
-                      key={project.projectId}
-                      className="border-t hover:bg-muted/40 transition"
-                    >
-                      <td className="px-4 py-3 font-medium">
-                        {project.projectName}
-                      </td>
+                    <TableBody>
+                      {community.topProjects.map((project) => (
+                        <TableRow
+                          key={project.projectId}
+                          className="hover:bg-muted/40 transition"
+                        >
+                          {/* Project */}
+                          <TableCell className="font-medium">
+                            {project.projectName ?? "N/A"}
+                          </TableCell>
 
-                      <td className="px-4 py-3">
-                        {project.developer?.name ?? "—"}
-                      </td>
+                          {/* Developer */}
+                          <TableCell>
+                            {project.developer?.name ?? "N/A"}
+                          </TableCell>
 
-                      <td className="px-4 py-3">
-                        {project.startingPrice
-                          ? `AED ${project.startingPrice.toLocaleString()}`
-                          : "—"}
-                      </td>
+                          {/* Starting Price */}
+                          <TableCell className="font-semibold">
+                            AED {formatPrice(project.startingPrice)}
+                          </TableCell>
 
-                      <td className="px-4 py-3">
-                        {project.downPaymentPercentage
-                          ? `${project.downPaymentPercentage}%`
-                          : "—"}
-                      </td>
+                          {/* Down Payment */}
+                          <TableCell>
+                            {project.downPaymentPercentage
+                              ? `${project.downPaymentPercentage}%`
+                              : "N/A"}
+                          </TableCell>
 
-                      <td className="px-4 py-3">
-                        <div className="text-xs">
-                          <div>
-                            Construction: {project.constructionPhase ?? "—"}
-                          </div>
-                          <div>Sales: {project.salesPhase ?? "—"}</div>
-                        </div>
-                      </td>
+                          {/* Phase */}
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <Badge
+                                variant="secondary"
+                                className="w-fit text-xs"
+                              >
+                                {project.constructionPhase ?? "N/A"}
+                              </Badge>
+                              <Badge
+                                variant="outline"
+                                className="w-fit text-xs"
+                              >
+                                Sales: {project.salesPhase ?? "N/A"}
+                              </Badge>
+                            </div>
+                          </TableCell>
 
-                      <td className="px-4 py-3">
-                        {project.deliveryDate
-                          ? new Date(project.deliveryDate).toLocaleDateString()
-                          : "—"}
-                      </td>
+                          {/* Delivery */}
+                          <TableCell>
+                            {project.deliveryDate
+                              ? new Date(
+                                  project.deliveryDate
+                                ).toLocaleDateString()
+                              : "N/A"}
+                          </TableCell>
 
-                      <td className="px-4 py-3 capitalize">
-                        {project.stockAvailability ?? "—"}
-                      </td>
+                          {/* Stock */}
+                          <TableCell>
+                            <Badge variant="outline" className="capitalize">
+                              {project.stockAvailability ?? "N/A"}
+                            </Badge>
+                          </TableCell>
 
-                      <td className="px-4 py-3 font-semibold">
-                        {project.hotnessLevel ?? "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+                          {/* Hotness */}
+                          <TableCell className="font-semibold">
+                            <Badge>{project.hotnessLevel ?? "N/A"}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow>
+                        <TableCell colSpan={8} className="p-0">
+                          <Link
+                            href={`/communities/${community.slug}/projects`}
+                          >
+                            <Button
+                              variant="secondary"
+                              className="w-full h-14 rounded-none text-base font-semibold"
+                            >
+                              Explore All Projects in {community.name}
+                            </Button>
+                          </Link>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
 
         {/* Market Insights Section */}
         <section id="market-insights" className="scroll-mt-32">
