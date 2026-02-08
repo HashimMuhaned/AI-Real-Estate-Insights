@@ -392,7 +392,32 @@ const PaymentPlan = ({ plan }: { plan: any }) => {
   );
 };
 
-const TimelineItem = ({ phase, isLast }: { phase: any; isLast: boolean }) => {
+const TimelineItem = ({ 
+  phase, 
+  isLast, 
+  constructionProgress 
+}: { 
+  phase: any; 
+  isLast: boolean;
+  constructionProgress?: number;
+}) => {
+  // Determine if this is the "under_construction" phase
+  const isConstructionPhase = phase.phase_key === "under_construction";
+  
+  // Show progress bar only for under_construction phase when it's completed
+  const showProgressBar = isConstructionPhase && phase.completed && constructionProgress != null;
+
+  // Map phase_key to display titles
+  const getPhaseTitle = (phaseKey: string) => {
+    const titles: Record<string, string> = {
+      'booking_started': 'Booking Started',
+      'under_construction': 'Construction Started',
+      'sold_out': 'Sold Out',
+      'completed': 'Expected Completion'
+    };
+    return titles[phaseKey] || phase.title;
+  };
+
   return (
     <div className="relative flex gap-6">
       <div className="flex flex-col items-center">
@@ -425,7 +450,7 @@ const TimelineItem = ({ phase, isLast }: { phase: any; isLast: boolean }) => {
           <div className="flex items-start justify-between mb-3">
             <div>
               <h4 className="text-lg font-bold text-[hsl(210,80%,12%)] mb-2">
-                {phase.title}
+                {getPhaseTitle(phase.phase_key)}
               </h4>
               {phase.phase_date && (
                 <p className="text-sm text-[hsl(210,60%,20%)]/70 flex items-center gap-2">
@@ -438,28 +463,29 @@ const TimelineItem = ({ phase, isLast }: { phase: any; isLast: boolean }) => {
                 </p>
               )}
             </div>
-            {phase.progress_percentage != null && (
-              <div className="text-right">
-                <p className="text-2xl font-bold text-[hsl(210,80%,12%)]">
-                  {phase.progress_percentage}%
-                </p>
-                <p className="text-xs text-[hsl(210,60%,20%)]/60">Progress</p>
-              </div>
-            )}
           </div>
 
-          {phase.progress_percentage != null && (
+          {showProgressBar && (
             <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-[hsl(210,60%,20%)]/70">Construction progress</p>
+                <p className="text-lg font-bold text-[hsl(210,80%,12%)]">
+                  {constructionProgress}%
+                </p>
+              </div>
               <div className="h-2 bg-[hsl(210,60%,20%)]/10 rounded-full overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all duration-1000 ${
-                    phase.completed
-                      ? "bg-gradient-to-r from-emerald-500 to-teal-600"
-                      : "bg-gradient-to-r from-[hsl(45,85%,55%)] to-[hsl(40,80%,60%)]"
-                  }`}
-                  style={{ width: `${phase.progress_percentage}%` }}
+                  className="h-full rounded-full transition-all duration-1000 bg-gradient-to-r from-emerald-500 to-teal-600"
+                  style={{ width: `${constructionProgress}%` }}
                 />
               </div>
+              <p className="mt-2 text-xs text-[hsl(210,60%,20%)]/60">
+                Latest update: {new Date().toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </p>
             </div>
           )}
         </div>
@@ -867,6 +893,46 @@ Provide a helpful, accurate answer based on the project data above.`,
   );
 };
 
+const FAQItem = ({ faq }: { faq: any }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="bg-white rounded-xl shadow-[0_10px_40px_-10px_hsl(210,80%,12%,0.15)] overflow-hidden transition-all hover:shadow-[0_8px_30px_-8px_hsl(45,85%,55%,0.25)]">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full p-6 flex items-center justify-between gap-4 text-left hover:bg-gradient-to-br hover:from-[hsl(35,25%,88%)]/30 hover:to-[hsl(25,20%,92%)]/30 transition-all"
+      >
+        <div className="flex items-start gap-3 flex-1">
+          <Info className="h-5 w-5 text-[hsl(45,85%,55%)] flex-shrink-0 mt-1" />
+          <h4 className="text-lg font-bold text-[hsl(210,80%,12%)]">
+            {faq.question}
+          </h4>
+        </div>
+        <ChevronRight
+          className={`h-5 w-5 text-[hsl(210,60%,20%)] flex-shrink-0 transition-transform duration-300 ${
+            isOpen ? "rotate-90" : ""
+          }`}
+        />
+      </button>
+      
+      <div
+        className={`overflow-hidden transition-all duration-300 ${
+          isOpen ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="px-6 pb-6 pt-0">
+          <div className="pl-8 border-l-2 border-[hsl(45,85%,55%)]/30">
+            <div
+              className="prose prose-sm max-w-none text-[hsl(210,60%,20%)]/80"
+              dangerouslySetInnerHTML={{ __html: faq.answer_html }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function ProjectPage({ params }: PageProps) {
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -1113,35 +1179,6 @@ export default function ProjectPage({ params }: PageProps) {
           </section>
         )}
 
-        {/* Construction Progress */}
-        {project.status?.construction_progress != null && (
-          <section className="bg-white rounded-xl shadow-[0_10px_40px_-10px_hsl(210,80%,12%,0.15)] p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-[hsl(210,80%,12%)]">
-                Construction Progress
-              </h3>
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-[hsl(45,85%,55%)]" />
-                <span className="text-2xl font-bold text-[hsl(210,80%,12%)]">
-                  {project.status.construction_progress}%
-                </span>
-              </div>
-            </div>
-            <div className="h-3 bg-gradient-to-br from-[hsl(35,25%,88%)] to-[hsl(25,20%,92%)] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full transition-all duration-1000"
-                style={{ width: `${project.status.construction_progress}%` }}
-              />
-            </div>
-            <p className="mt-3 text-sm text-[hsl(210,60%,20%)]/70">
-              Status:{" "}
-              <span className="font-semibold capitalize">
-                {project.status?.construction_phase?.replace(/_/g, " ")}
-              </span>
-            </p>
-          </section>
-        )}
-
         {/* Market Demand */}
         {project.status?.hotness_level != null && (
           <section className="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-6 border-2 border-orange-200">
@@ -1240,6 +1277,7 @@ export default function ProjectPage({ params }: PageProps) {
                     key={idx}
                     phase={phase}
                     isLast={idx === project.construction_timeline.length - 1}
+                    constructionProgress={project.status?.construction_progress}
                   />
                 ))}
             </div>
@@ -1338,23 +1376,7 @@ export default function ProjectPage({ params }: PageProps) {
             </h2>
             <div className="space-y-4">
               {project.faqs.map((faq: any, idx: number) => (
-                <div
-                  key={idx}
-                  className="bg-white rounded-xl shadow-[0_10px_40px_-10px_hsl(210,80%,12%,0.15)] p-6 hover:shadow-[0_8px_30px_-8px_hsl(45,85%,55%,0.25)] transition-all"
-                >
-                  <div className="flex items-start gap-3">
-                    <Info className="h-5 w-5 text-[hsl(45,85%,55%)] flex-shrink-0 mt-1" />
-                    <div className="flex-1">
-                      <h4 className="text-lg font-bold text-[hsl(210,80%,12%)] mb-3">
-                        {faq.question}
-                      </h4>
-                      <div
-                        className="prose prose-sm max-w-none text-[hsl(210,60%,20%)]/80"
-                        dangerouslySetInnerHTML={{ __html: faq.answer_html }}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <FAQItem key={idx} faq={faq} />
               ))}
             </div>
           </section>

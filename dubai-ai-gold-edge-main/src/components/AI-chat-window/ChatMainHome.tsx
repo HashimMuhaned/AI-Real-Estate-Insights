@@ -2,17 +2,39 @@
 
 import InputBar from "../AI-chat-window/ChatInput";
 import MessageArea from "../AI-chat-window/MessageArea";
-import React, { useState, useRef } from "react";
-import { TbMessageChatbot } from "react-icons/tb";
+import React, { useState, useRef, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useChat, type ChatMessage } from "../../context/ChatContext";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, MapPin, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import SmartChatButton from "./SmartChatButton";
+import CoachMark from "./CoachMark";
 
-const ChatMainHome = () => {
+type ChatMainHomeProps = {
+  // Optional: community context to show smart button
+  communityName?: string;
+  communitySlug?: string;
+};
+
+const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
   const [isMaximized, setIsMaximized] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const { messages, setMessages, isAnonymous } = useChat(); // 👈 Get isAnonymous flag
+  const [showCoachMark, setShowCoachMark] = useState(false);
+  const [isButtonExpanded, setIsButtonExpanded] = useState(false);
+  const [currentTextIndex, setCurrentTextIndex] = useState(0);
+  
+  const {
+    messages,
+    setMessages,
+    isAnonymous,
+    areaContext,
+    setAreaContext,
+    isChatOpen,
+    openChat,
+    closeChat,
+    contextPrompt,
+    setContextPrompt,
+  } = useChat();
+  
   const [currentMessage, setCurrentMessage] = useState("");
   const [checkpointId, setCheckpointId] = useState<string | null>(null);
 
@@ -23,6 +45,85 @@ const ChatMainHome = () => {
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectAttemptsRef = useRef<number>(0);
   const isRetryingRef = useRef<boolean>(false);
+  const textRotationTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Smart button expansion logic with user activity tracking
+  useEffect(() => {
+    if (!communityName) {
+      setIsButtonExpanded(false);
+      if (textRotationTimerRef.current) {
+        clearInterval(textRotationTimerRef.current);
+        textRotationTimerRef.current = null;
+      }
+      return;
+    }
+
+    let inactivityTimer: NodeJS.Timeout;
+
+    const startExpansion = () => {
+      setIsButtonExpanded(true);
+
+      // Start text rotation timer - change text every 8 seconds (loops continuously)
+      if (!textRotationTimerRef.current) {
+        textRotationTimerRef.current = setInterval(() => {
+          setCurrentTextIndex((prev) => (prev + 1) % 4);
+        }, 8000);
+      }
+    };
+
+    const stopExpansion = () => {
+      setIsButtonExpanded(false);
+      
+      // Clear text rotation
+      if (textRotationTimerRef.current) {
+        clearInterval(textRotationTimerRef.current);
+        textRotationTimerRef.current = null;
+      }
+    };
+
+    const resetInactivityTimer = () => {
+      // Clear existing timer
+      clearTimeout(inactivityTimer);
+      
+      // Only collapse if chat is open
+      if (isChatOpen) {
+        stopExpansion();
+        return;
+      }
+
+      // Expand after 5 seconds of inactivity
+      inactivityTimer = setTimeout(() => {
+        if (!isChatOpen) {
+          startExpansion();
+        }
+      }, 5000);
+    };
+
+    // Initial setup - start inactivity timer
+    resetInactivityTimer();
+
+    // Track scroll activity (collapses button and resets timer)
+    const handleScroll = () => {
+      stopExpansion();
+      resetInactivityTimer();
+    };
+
+    // Track chat opening (collapses button)
+    if (isChatOpen) {
+      stopExpansion();
+    }
+
+    // Listen only for scroll
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      clearTimeout(inactivityTimer);
+      if (textRotationTimerRef.current) {
+        clearInterval(textRotationTimerRef.current);
+      }
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [communityName, isChatOpen]);
 
   const makeId = () => `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 
@@ -47,14 +148,13 @@ const ChatMainHome = () => {
     message: string,
     error?: { code: string; message: string }
   ) => {
-    // CRITICAL FIX: Ensure isLoading is ALWAYS set to false
     setMessages((prev) =>
       prev.map((m) =>
         m.id === id
           ? {
               ...m,
               content: message || "⚠️ An unexpected error occurred.",
-              isLoading: false, // <-- This must be false
+              isLoading: false,
               error,
             }
           : m
@@ -107,7 +207,6 @@ const ChatMainHome = () => {
       setCurrentMessage("");
     }
 
-    // Only create user message if this is NOT a retry
     if (!isRetry) {
       const newMessageId = makeId();
 
@@ -125,7 +224,6 @@ const ChatMainHome = () => {
 
     const aiResponseId = makeId();
 
-    // If retry, remove the old AI message first
     if (isRetry) {
       setMessages((prev: ChatMessage[]) => {
         const filtered = [...prev];
@@ -166,15 +264,20 @@ const ChatMainHome = () => {
     const base = "http://localhost:8000";
     const sseUrl = new URL("/chat_stream", base);
     sseUrl.searchParams.append("query", userInput);
-    
-    // 👇 CRITICAL CHANGE: Only add user_id if authenticated
+
     if (userId) {
       sseUrl.searchParams.append("user_id", String(userId));
       console.log("✅ Authenticated user - messages will be saved");
     } else {
       console.log("ℹ️ Anonymous user - messages will not be saved");
     }
-    
+
+    // Add area context if available
+    if (areaContext) {
+      sseUrl.searchParams.append("area_context", JSON.stringify(areaContext));
+      console.log("📍 Area context added:", areaContext.areaName);
+    }
+
     if (checkpointId) {
       sseUrl.searchParams.append("checkpoint_id", String(checkpointId));
     }
@@ -208,25 +311,26 @@ const ChatMainHome = () => {
     let backendErrorReceived = false;
     let isCleanedUp = false;
 
-    // Watchdog timeout to detect silent failures
     const watchdogTimeout = setTimeout(() => {
       if (!sawAnyData && !isCleanedUp) {
         console.warn("SSE watchdog triggered — no data received within 5s");
 
-        // FIX: Use failMessage to ensure isLoading = false
-        failMessage(aiResponseId, "⚠️ No response from server. Please try again.", {
-          code: "TIMEOUT",
-          message: "No data received from server.",
-        });
+        failMessage(
+          aiResponseId,
+          "⚠️ No response from server. Please try again.",
+          {
+            code: "TIMEOUT",
+            message: "No data received from server.",
+          }
+        );
 
         if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
           eventSource.close();
         }
         cleanup();
       }
-    }, 5000); // 5 seconds watchdog
+    }, 5000);
 
-    // Global timeout to prevent requests hanging forever
     const globalTimeout = setTimeout(() => {
       if (!isCleanedUp) {
         console.error("Global timeout reached - forcing cleanup");
@@ -247,7 +351,7 @@ const ChatMainHome = () => {
 
         cleanup();
       }
-    }, 120000); // 2 minute global timeout
+    }, 120000);
 
     const cleanup = () => {
       if (isCleanedUp) return;
@@ -264,7 +368,6 @@ const ChatMainHome = () => {
         eventSourceRef.current = null;
       }
 
-      // FIX: Always ensure isLoading is false during cleanup
       setMessages((prev) =>
         prev.map((m) =>
           m.id === aiResponseId
@@ -478,15 +581,10 @@ const ChatMainHome = () => {
         }
       } catch (err) {
         console.error("Error parsing SSE message:", err, ev.data);
-        // FIX: Show error to user instead of silently failing
-        failMessage(
-          aiResponseId,
-          "⚠️ Error processing server response.",
-          {
-            code: "PARSE_ERROR",
-            message: "Failed to parse server message.",
-          }
-        );
+        failMessage(aiResponseId, "⚠️ Error processing server response.", {
+          code: "PARSE_ERROR",
+          message: "Failed to parse server message.",
+        });
         cleanup();
       }
     };
@@ -494,7 +592,6 @@ const ChatMainHome = () => {
     eventSource.onerror = () => {
       console.error("EventSource transport error");
 
-      // HARD STOPS - nothing else should run after these
       if (isCleanedUp) {
         console.log("Already cleaned up, ignoring onerror");
         return;
@@ -512,11 +609,9 @@ const ChatMainHome = () => {
         return;
       }
 
-      // Check connection state
       const noDataAtAll = !sawAnyData && !streamedContent;
       const partialData = sawAnyData && streamedContent;
 
-      // ONE-TIME RETRY LOGIC
       const canRetry =
         !isRetry &&
         reconnectAttemptsRef.current === 0 &&
@@ -529,7 +624,6 @@ const ChatMainHome = () => {
 
         console.log("Attempting one retry...");
 
-        // Show user we're retrying
         mergeMessageUpdate(aiResponseId, {
           content: "⚠️ Connection lost. Retrying...",
           isLoading: true,
@@ -552,7 +646,6 @@ const ChatMainHome = () => {
         return;
       }
 
-      // FINAL ERROR STATE - No more retries
       console.log(
         `Showing final error. Retry: ${isRetry}, Attempts: ${reconnectAttemptsRef.current}`
       );
@@ -583,97 +676,156 @@ const ChatMainHome = () => {
     };
 
     eventSource.addEventListener("end", () => {
-      cleanup(); // FIX: Call cleanup to ensure state is updated
+      cleanup();
     });
   };
 
+  const handleCloseChat = () => {
+    closeChat();
+  };
+
+  const handleClearContext = () => {
+    setAreaContext(null);
+  };
+
+  const handleOpenChatWithContext = () => {
+    openChat();
+    setShowCoachMark(false);
+  };
+
+  // Generate contextual button text based on current rotation index
+  const getContextText = (): string | null => {
+    if (!isButtonExpanded || !communityName) return null;
+    
+    const textOptions = [
+      `Ask about ${communityName}`,
+      "What are the best projects here?",
+      "Compare with other areas",
+      "Is this a good investment?",
+    ];
+    
+    return textOptions[currentTextIndex];
+  };
+
   return (
-    <div className="fixed bottom-6 right-6 z-50">
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 30 }}
-            animate={{
-              opacity: 1,
-              scale: 1,
-              y: 0,
-              width: isMaximized ? "97vw" : "32rem",
-              height: isMaximized ? "95vh" : "41.2rem",
-              right: 12,
-            }}
-            exit={{ opacity: 0, scale: 0.9, y: 30 }}
-            transition={{
-              duration: 0.3,
-              ease: "easeInOut",
-            }}
-            className={`bg-white shadow-2xl border border-gray-200 rounded-2xl overflow-hidden flex flex-col fixed bottom-6 z-50`}
-            style={{
-              originX: isMaximized ? 1 : 0,
-              originY: 1,
-            }}
-          >
-            <div
-              className="h-12 px-4 flex items-center justify-between text-sm font-medium"
+    <>
+      {/* Coach Mark */}
+      {communitySlug && communityName && (
+        <CoachMark
+          communitySlug={communitySlug}
+          communityName={communityName}
+          onDismiss={() => setShowCoachMark(false)}
+          onOpenChat={handleOpenChatWithContext}
+        />
+      )}
+
+      <div className="fixed bottom-6 right-6 z-50">
+        <AnimatePresence>
+          {isChatOpen && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 30 }}
+              animate={{
+                opacity: 1,
+                scale: 1,
+                y: 0,
+                width: isMaximized ? "97vw" : "32rem",
+                height: isMaximized ? "95vh" : "41.2rem",
+                right: 12,
+              }}
+              exit={{ opacity: 0, scale: 0.9, y: 30 }}
+              transition={{
+                duration: 0.3,
+                ease: "easeInOut",
+              }}
+              className={`bg-white shadow-2xl border border-gray-200 rounded-2xl overflow-hidden flex flex-col fixed bottom-6 z-50`}
               style={{
-                background:
-                  "linear-gradient(135deg, hsl(35 25% 88%), hsl(25 20% 92%))",
+                originX: isMaximized ? 1 : 0,
+                originY: 1,
               }}
             >
-              <span className="text-gray-700">
-                AI Assistant {isAnonymous && "(Guest Mode)"}
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsMaximized((prev) => !prev)}
-                  className="p-1 rounded hover:bg-gray-100 transition"
-                >
-                  {isMaximized ? (
-                    <Minimize2 size={16} />
-                  ) : (
-                    <Maximize2 size={16} />
-                  )}
-                </button>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="p-1 rounded hover:bg-gray-100 transition"
-                >
-                  &times;
-                </button>
+              {/* Header */}
+              <div
+                className="h-12 px-4 flex items-center justify-between text-sm font-medium"
+                style={{
+                  background:
+                    "linear-gradient(135deg, hsl(35 25% 88%), hsl(25 20% 92%))",
+                }}
+              >
+                <span className="text-gray-700">
+                  AI Assistant {isAnonymous && "(Guest Mode)"}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsMaximized((prev) => !prev)}
+                    className="p-1 rounded hover:bg-gray-100 transition"
+                  >
+                    {isMaximized ? (
+                      <Minimize2 size={16} />
+                    ) : (
+                      <Maximize2 size={16} />
+                    )}
+                  </button>
+                  <button
+                    onClick={handleCloseChat}
+                    className="p-1 rounded hover:bg-gray-100 transition"
+                  >
+                    &times;
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <MessageArea
-              messages={messages}
-              isMaximized={isMaximized}
-              onSubmit={(msg, isRetry) => handleSubmit(msg, isRetry || false)}
-            />
+              {/* Context Banner */}
+              {areaContext && (
+                <div className="bg-gradient-to-r from-[hsl(45,85%,55%)] to-[hsl(40,80%,60%)] px-4 py-3 flex items-center justify-between text-white text-sm">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 flex-shrink-0" />
+                    <div className="flex flex-col">
+                      <span className="font-semibold">
+                        Analyzing {areaContext.areaName}
+                      </span>
+                      <span className="text-xs text-white/90">
+                        Using community-specific data to answer your questions
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleClearContext}
+                    className="p-1 hover:bg-white/20 rounded transition flex-shrink-0"
+                    aria-label="Ask globally"
+                    title="Ask globally"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
 
-            <InputBar
-              currentMessage={currentMessage}
-              setCurrentMessage={setCurrentMessage}
-              onSubmit={handleSubmit}
+              <MessageArea
+                messages={messages}
+                isMaximized={isMaximized}
+                onSubmit={(msg, isRetry) => handleSubmit(msg, isRetry || false)}
+              />
+
+              <InputBar
+                currentMessage={currentMessage}
+                setCurrentMessage={setCurrentMessage}
+                onSubmit={handleSubmit}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {!isChatOpen && (
+          <div data-smart-chat-button>
+            <SmartChatButton
+              isExpanded={isButtonExpanded}
+              contextText={getContextText()}
+              communityName={communityName}
+              onClick={handleOpenChatWithContext}
             />
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
-
-      {!isOpen && (
-        <motion.button
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setIsOpen(true)}
-          className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white"
-          style={{
-            background:
-              "linear-gradient(135deg, hsl(45 85% 55%), hsl(40 80% 60%))",
-          }}
-        >
-          <TbMessageChatbot className="text-2xl" />
-        </motion.button>
-      )}
-    </div>
+      </div>
+    </>
   );
 };
 

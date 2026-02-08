@@ -1,8 +1,10 @@
 import React, { useState, useRef } from "react";
 import { Send, Plus, X, Paperclip, File, Image } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useChat } from "@/context/ChatContext";
 
 const ChatInput = ({ currentMessage, setCurrentMessage, onSubmit }) => {
+  const { contextPrompt, setContextPrompt } = useChat();
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const [showActions, setShowActions] = useState(false);
@@ -45,6 +47,11 @@ const ChatInput = ({ currentMessage, setCurrentMessage, onSubmit }) => {
   const removeQuickAction = () => {
     setSelectedAction(null);
     setCurrentMessage("");
+    textareaRef.current?.focus();
+  };
+
+  const removeContextPrompt = () => {
+    setContextPrompt(null);
     textareaRef.current?.focus();
   };
 
@@ -154,6 +161,44 @@ const ChatInput = ({ currentMessage, setCurrentMessage, onSubmit }) => {
       {/* Chat Input */}
       <div className="p-4">
         <div className="relative flex flex-col bg-white rounded-2xl shadow-sm border border-gray-300 hover:border-gray-400 transition-colors">
+          {/* Context Prompt Banner - Compact style showing section content */}
+          <AnimatePresence>
+            {contextPrompt && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-start gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-200"
+              >
+                <div className="flex items-start gap-2 flex-1 min-w-0">
+                  <motion.div
+                    initial={{ rotate: 0 }}
+                    animate={{ rotate: 0 }}
+                    className="text-gray-500 mt-0.5 flex-shrink-0"
+                  >
+                    ↳
+                  </motion.div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-gray-500 mb-1">
+                      {contextPrompt.topic}:
+                    </div>
+                    <p className="text-sm text-gray-700 line-clamp-2">
+                      {contextPrompt.question}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={removeContextPrompt}
+                  className="p-1 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0"
+                >
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Textarea Container */}
           <div className="flex-1 px-4 pt-3 pb-2">
             <textarea
@@ -168,7 +213,7 @@ const ChatInput = ({ currentMessage, setCurrentMessage, onSubmit }) => {
                   }
                 }
               }}
-              placeholder="Ask about investment opportunities..."
+              placeholder="Ask anything"
               className="w-full bg-transparent border-none outline-none text-sm text-gray-800 placeholder-gray-400 resize-none overflow-y-auto"
               style={{
                 maxHeight: "200px",

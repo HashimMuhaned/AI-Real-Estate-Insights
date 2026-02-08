@@ -24,8 +24,8 @@ export type ChatMessage = {
   };
 
   toolResults?: {
-    db?: any; // 👈 DB query results
-    web?: any; // future
+    db?: any;
+    web?: any;
     charts?: any;
   };
 
@@ -39,6 +39,26 @@ export type ChatMessage = {
   };
 };
 
+export type AreaContext = {
+  areaName: string;
+  areaType: string;
+  snapshotDate: string;
+  metadata?: {
+    locationId?: number;
+    slug?: string;
+    population?: number | null;
+    coordinates?: {
+      latitude: number;
+      longitude: number;
+    };
+  };
+};
+
+export type ContextPrompt = {
+  topic: string;
+  question: string;
+};
+
 type ChatContextType = {
   messages: ChatMessage[];
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
@@ -47,6 +67,13 @@ type ChatContextType = {
   isAnonymous: boolean;
   isSyncing: boolean;
   syncSuccess: boolean;
+  areaContext: AreaContext | null;
+  setAreaContext: React.Dispatch<React.SetStateAction<AreaContext | null>>;
+  isChatOpen: boolean;
+  openChat: () => void;
+  closeChat: () => void;
+  contextPrompt: ContextPrompt | null;
+  setContextPrompt: React.Dispatch<React.SetStateAction<ContextPrompt | null>>;
 };
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -57,6 +84,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
+  const [areaContext, setAreaContext] = useState<AreaContext | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [contextPrompt, setContextPrompt] = useState<ContextPrompt | null>(null);
   const { data: session, status } = useSession();
 
   // Determine if user is anonymous (not authenticated)
@@ -65,12 +95,16 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const hasSyncedRef = useRef<boolean>(false);
   const hasLoadedFromDBRef = useRef<boolean>(false);
 
+  const openChat = () => setIsChatOpen(true);
+  const closeChat = () => {
+    setIsChatOpen(false);
+  };
+
   // 🔥 STEP 1: On mount, check if we need to sync messages after OAuth login
   useEffect(() => {
-    if (hasSyncedRef.current) return; // Already synced this session
-    if (status !== "authenticated" || !session?.user?.id) return; // Not logged in yet
+    if (hasSyncedRef.current) return;
+    if (status !== "authenticated" || !session?.user?.id) return;
 
-    // Check if there are messages waiting to be synced
     const needsSync = sessionStorage.getItem("needs_sync");
     const savedMessages = sessionStorage.getItem("anonymous_chat_messages");
 
@@ -85,11 +119,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         const parsedMessages = JSON.parse(savedMessages);
         
-        // Restore messages to UI first
         setMessages(parsedMessages);
         console.log(`📱 Restored ${parsedMessages.length} messages to UI`);
 
-        // Filter messages for syncing
         const messagesToSync = parsedMessages.filter(
           (msg: ChatMessage) => msg.type === "message" && !msg.isLoading
         );
@@ -102,7 +134,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
 
-        // Transform to backend format
         const formattedMessages = messagesToSync.map((msg: ChatMessage) => ({
           role: msg.isUser ? "user" : "ai",
           content: msg.content,
@@ -121,7 +152,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
         console.log(`📤 Syncing ${formattedMessages.length} messages to database...`);
 
-        // Sync to backend
         axios
           .post("http://localhost:8000/sync_anonymous_messages", {
             user_id: session.user.id,
@@ -131,12 +161,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             console.log("✅ Successfully synced anonymous messages to database");
             console.log("Backend response:", res.data);
 
-            // Clear sessionStorage after successful sync
             sessionStorage.removeItem("anonymous_chat_messages");
             sessionStorage.removeItem("needs_sync");
             console.log("🗑️ Cleared sessionStorage after successful sync");
 
-            // 🔥 NEW: Fetch messages from database to get proper IDs
             console.log("📥 Fetching messages from database...");
             
             const params = new URLSearchParams();
@@ -153,12 +181,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             if (bootRes) {
               console.log("Chat history fetched from DB:", bootRes.data);
 
-              // Filter to show only AI and user messages
               const filtered = bootRes.data.messages.filter(
                 (m: any) => m.role === "ai" || m.role === "user"
               );
 
-              // Map to frontend format
               const loaded: ChatMessage[] = filtered.map((m: any, i: number) => ({
                 id: m.id || `history-${i}`,
                 content: m.content,
@@ -184,11 +210,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
                   : undefined,
               }));
 
-              // Update messages with DB versions (with proper IDs)
               setMessages(loaded);
               console.log(`✅ Replaced with ${loaded.length} messages from database`);
 
-              // Show success banner
               setSyncSuccess(true);
               setTimeout(() => {
                 setSyncSuccess(false);
@@ -198,7 +222,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           .catch((err) => {
             console.error("❌ Failed to sync or fetch messages:", err);
             console.error("Error details:", err.response?.data);
-            // Keep messages in sessionStorage for retry
           })
           .finally(() => {
             setIsSyncing(false);
@@ -210,9 +233,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [status, session]);
 
-  // 🔥 STEP 2: Load chat history (only if we didn't restore from sessionStorage)
+  // 🔥 STEP 2: Load chat history
   useEffect(() => {
-    // Skip if already loaded, still loading, or if we have messages from sessionStorage
     if (hasLoadedFromDBRef.current || status === "loading" || messages.length > 0) {
       return;
     }
@@ -220,18 +242,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(true);
     hasLoadedFromDBRef.current = true;
 
-    // Build URL - make user_id and fname optional
     const params = new URLSearchParams();
     
-    // Only add user_id and fname if authenticated
     if (status === "authenticated" && session?.user?.id) {
       params.append("user_id", session.user.id);
       if (session.user.name) {
         params.append("fname", session.user.name);
       }
       
-      // 🔥 NEW: Check if we're about to sync anonymous messages
-      // If so, skip the greeting to avoid duplicate greetings
       const needsSync = sessionStorage.getItem("needs_sync");
       if (needsSync === "true") {
         params.append("skip_greeting", "true");
@@ -248,12 +266,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       .then((res) => {
         console.log("Chat history loaded:", res.data);
 
-        // Filter to show only AI and user messages (exclude system messages)
         const filtered = res.data.messages.filter(
           (m: any) => m.role === "ai" || m.role === "user"
         );
 
-        // Map to frontend format with all necessary fields
         const loaded: ChatMessage[] = filtered.map((m: any, i: number) => ({
           id: m.id || `history-${i}`,
           content: m.content,
@@ -279,7 +295,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             : undefined,
         }));
 
-        // Only set messages if we got some (skip empty greeting)
         if (loaded.length > 0) {
           setMessages(loaded);
           console.log(`✅ Loaded ${loaded.length} messages (${isAnonymous ? "anonymous" : "authenticated"})`);
@@ -302,7 +317,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (isAnonymous && messages.length > 0) {
       try {
-        // Only save actual conversation messages, not loading states
         const messagesToSave = messages.filter(
           (msg) => msg.type === "message" && !msg.isLoading
         );
@@ -312,7 +326,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             "anonymous_chat_messages",
             JSON.stringify(messagesToSave)
           );
-          // Mark that these messages need syncing when user logs in
           sessionStorage.setItem("needs_sync", "true");
           console.log(`💾 Saved ${messagesToSave.length} messages to sessionStorage (needs_sync=true)`);
         }
@@ -332,6 +345,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         isAnonymous,
         isSyncing,
         syncSuccess,
+        areaContext,
+        setAreaContext,
+        isChatOpen,
+        openChat,
+        closeChat,
+        contextPrompt,
+        setContextPrompt,
       }}
     >
       {children}

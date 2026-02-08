@@ -23,6 +23,9 @@ import { Badge } from "@/components/ui/badge";
 import formatPrice from "@/helpers/FormatPrice";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useChat } from "@/context/ChatContext";
+import ChatMainHome from "@/components/AI-chat-window/ChatMainHome";
+import TextHighlightMenu from "@/components/TextHighlightMenu";
 
 type PageProps = {
   params: Promise<{
@@ -113,6 +116,7 @@ export default function CommunityPageDetails({ params }: PageProps) {
   const [community, setCommunity] = useState<Community | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const { setAreaContext, setContextPrompt, openChat } = useChat();
 
   React.useEffect(() => {
     const fetchData = async () => {
@@ -141,9 +145,24 @@ export default function CommunityPageDetails({ params }: PageProps) {
           projects = projectsData.projects || [];
         }
 
-        setCommunity({
+        const fullCommunityData = {
           ...communityData,
           topProjects: projects,
+        };
+
+        setCommunity(fullCommunityData);
+
+        // Set area context for AI chat
+        setAreaContext({
+          areaName: communityData.name,
+          areaType: communityData.level,
+          snapshotDate: new Date().toISOString().split("T")[0],
+          metadata: {
+            locationId: communityData.location_id,
+            slug: communityData.slug,
+            population: communityData.population_estimate,
+            coordinates: communityData.accessibility?.coordinates,
+          },
         });
       } catch (error) {
         console.error("Error loading community page:", error);
@@ -153,7 +172,7 @@ export default function CommunityPageDetails({ params }: PageProps) {
     };
 
     fetchData();
-  }, [slug]);
+  }, [slug, setAreaContext]);
 
   if (loading) {
     return (
@@ -201,6 +220,15 @@ export default function CommunityPageDetails({ params }: PageProps) {
   return (
     <>
       <CommunitySubNav />
+      
+      {/* Text Highlight Menu - Global */}
+      <TextHighlightMenu />
+      
+      {/* Smart AI Chat with Coach Mark */}
+      <ChatMainHome
+        communityName={community.name}
+        communitySlug={community.slug}
+      />
 
       <div className="max-w-7xl mx-auto p-6 space-y-16 pt-24">
         {/* Hero Image */}
@@ -307,19 +335,34 @@ export default function CommunityPageDetails({ params }: PageProps) {
           <section id="investor-verdict" className="scroll-mt-32">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-semibold">Investor Verdict</h2>
-              {community.narratives.investor_verdict.confidenceScore && (
-                <div className="flex items-center gap-2 text-sm">
-                  <TrendingUp className="w-4 h-4 text-green-500" />
-                  <span className="text-muted-foreground">
-                    Confidence:{" "}
-                    {(
-                      community.narratives.investor_verdict.confidenceScore *
-                      100
-                    ).toFixed(0)}
-                    %
-                  </span>
-                </div>
-              )}
+              <button
+                onClick={() => {
+                  setAreaContext({
+                    areaName: community.name,
+                    areaType: community.level,
+                    snapshotDate: new Date().toISOString().split("T")[0],
+                    metadata: {
+                      locationId: community.location_id,
+                      slug: community.slug,
+                      population: community.population_estimate,
+                      coordinates: community.accessibility?.coordinates,
+                    },
+                  });
+                  setContextPrompt({
+                    topic: "Investor Verdict",
+                    question: community.narratives.investor_verdict.content,
+                  });
+                  openChat();
+                }}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition-all hover:opacity-90 hover:shadow-md"
+                style={{
+                  background:
+                    "linear-gradient(135deg, hsl(45 85% 55%), hsl(40 80% 60%))",
+                }}
+              >
+                <TrendingUp className="w-4 h-4" />
+                Ask AI about this
+              </button>
             </div>
             <div className="bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-lg p-6">
               <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-line">
@@ -334,18 +377,34 @@ export default function CommunityPageDetails({ params }: PageProps) {
           <section id="risks" className="scroll-mt-32">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-semibold">Risks</h2>
-              {community.narratives.risks.confidenceScore && (
-                <div className="flex items-center gap-2 text-sm">
-                  <AlertCircle className="w-4 h-4 text-amber-500" />
-                  <span className="text-muted-foreground">
-                    Confidence:{" "}
-                    {(community.narratives.risks.confidenceScore * 100).toFixed(
-                      0
-                    )}
-                    %
-                  </span>
-                </div>
-              )}
+              <button
+                onClick={() => {
+                  setAreaContext({
+                    areaName: community.name,
+                    areaType: community.level,
+                    snapshotDate: new Date().toISOString().split("T")[0],
+                    metadata: {
+                      locationId: community.location_id,
+                      slug: community.slug,
+                      population: community.population_estimate,
+                      coordinates: community.accessibility?.coordinates,
+                    },
+                  });
+                  setContextPrompt({
+                    topic: "Risks",
+                    question: community.narratives.risks.content,
+                  });
+                  openChat();
+                }}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition-all hover:opacity-90 hover:shadow-md"
+                style={{
+                  background:
+                    "linear-gradient(135deg, hsl(45 85% 55%), hsl(40 80% 60%))",
+                }}
+              >
+                <AlertCircle className="w-4 h-4" />
+                Ask AI about this
+              </button>
             </div>
             <div className="bg-gradient-to-br from-amber-500/5 to-amber-500/10 border border-amber-500/20 rounded-lg p-6">
               <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-line">

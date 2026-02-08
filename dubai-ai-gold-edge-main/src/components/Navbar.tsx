@@ -7,19 +7,22 @@ import { usePathname } from "next/navigation";
 // import { signIn } from "next-auth/react";
 import AuthButtons from "@/components/auth/AuthButtons";
 import Link from "next/link";
+import { useNavbarTheme } from "@/context/NavbarThemeContext";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const navbarTheme = useNavbarTheme();
+  const isDark = navbarTheme === "dark";
 
   // Check if current page should have white nav links when not scrolled
-  const isWhiteNavPage = 
-    pathname === "/" || 
-    pathname === "/explore-areas" || 
-    pathname.startsWith("/area-insight-") ||
-    pathname.startsWith("/communities") ||
-    pathname === "/projects";
+  // const isWhiteNavPage =
+  //   pathname === "/" ||
+  //   pathname === "/explore-areas" ||
+  //   pathname.startsWith("/area-insight-") ||
+  //   pathname.startsWith("/communities") ||
+  //   pathname === "/projects";
 
   useEffect(() => {
     const handleScroll = () => {
@@ -42,15 +45,9 @@ const Navbar = () => {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled
-          ? "bg-background border-b border-border/50"
-          : "bg-transparent"
-      }`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-background border-b border-border/50`}
       style={
-        isScrolled
-          ? { boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)" }
-          : undefined
+        isScrolled ? { boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)" } : undefined
       }
     >
       {/* Geometric border */}
@@ -60,9 +57,7 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <h1 className={`text-2xl font-serif font-bold ${
-              isWhiteNavPage && !isScrolled ? "text-white" : "text-foreground"
-            }`}>
+            <h1 className={`text-2xl font-serif font-bold`}>
               {/* DXB AI */}
               <Link href={`/`}>Home</Link>
             </h1>
@@ -74,9 +69,7 @@ const Navbar = () => {
               <a
                 key={link.name}
                 href={link.href}
-                className={`transition-colors duration-200 font-medium hover:text-accent ${
-                  isWhiteNavPage && !isScrolled ? "text-white" : "text-foreground"
-                }`}
+                className={`transition-colors duration-200 font-medium hover:text-accent`}
               >
                 {link.name}
               </a>
@@ -89,9 +82,7 @@ const Navbar = () => {
           <div className="md:hidden">
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className={`p-2 ${
-                isWhiteNavPage && !isScrolled ? "text-white" : "text-foreground"
-              }`}
+              className={`p-2`}
             >
               {isMobileMenuOpen ? (
                 <X className="h-6 w-6" />
