@@ -30,6 +30,7 @@ import {
   Sparkles,
   History,
   TrendingDown,
+  ExternalLink,
 } from "lucide-react";
 import MarkdownRenderer from "@/helpers/OrgLLMRES";
 
@@ -202,6 +203,261 @@ const ImageGallery = ({
         </div>
       )}
     </>
+  );
+};
+
+const SimilarProjectCard = ({ project }: { project: any }) => {
+  const formatPrice = (price: number) => {
+    if (price >= 1000000) return `${(price / 1000000).toFixed(2)}M`;
+    return `${(price / 1000).toFixed(0)}K`;
+  };
+
+  const getStockBadge = (stock: string) => {
+    const badges: Record<string, { text: string; className: string }> = {
+      available: {
+        text: "Available",
+        className: "bg-emerald-100 text-emerald-700",
+      },
+      limited: {
+        text: "Limited",
+        className: "bg-amber-100 text-amber-700",
+      },
+      might_be_sold_out: {
+        text: "Almost Sold Out",
+        className: "bg-orange-100 text-orange-700",
+      },
+      sold_out: {
+        text: "Sold Out",
+        className: "bg-red-100 text-red-700",
+      },
+    };
+    return badges[stock] || badges.available;
+  };
+
+  const stockBadge = getStockBadge(project.stock);
+
+  return (
+    <div className="flex-shrink-0 w-[380px] bg-white rounded-xl shadow-[0_10px_40px_-10px_hsl(210,80%,12%,0.15)] overflow-hidden hover:shadow-[0_8px_30px_-8px_hsl(45,85%,55%,0.25)] transition-all group/card">
+      {/* Image */}
+      <div className="relative h-[240px] overflow-hidden">
+        <img
+          src={project.image}
+          alt={project.project_name}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+        />
+        
+        {/* Badges */}
+        <div className="absolute top-4 left-4 flex flex-col gap-2">
+          <span
+            className={`px-3 py-1.5 rounded-full text-xs font-bold ${stockBadge.className}`}
+          >
+            {stockBadge.text}
+          </span>
+          {project.hotness > 70 && (
+            <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-gradient-to-br from-orange-500 to-red-500 text-white">
+              High Demand
+            </span>
+          )}
+        </div>
+
+        {/* Developer Logo */}
+        {project.developer?.logo_url && (
+          <div className="absolute top-4 right-4 bg-white rounded-lg p-2 shadow-lg">
+            <img
+              src={project.developer.logo_url}
+              alt={project.developer.name}
+              className="h-8 w-auto object-contain"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="p-5">
+        {/* Title */}
+        <h3 className="text-xl font-bold text-[hsl(210,80%,12%)] mb-2 line-clamp-1">
+          {project.project_name}
+        </h3>
+
+        {/* Developer */}
+        {project.developer?.name && (
+          <p className="text-sm text-[hsl(210,60%,20%)]/60 mb-4">
+            by {project.developer.name}
+          </p>
+        )}
+
+        {/* Price and Down Payment */}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="bg-gradient-to-br from-[hsl(35,25%,88%)] to-[hsl(25,20%,92%)] rounded-lg p-3">
+            <p className="text-xs text-[hsl(210,60%,20%)]/60 mb-1">From</p>
+            <p className="text-lg font-bold text-[hsl(210,80%,12%)]">
+              AED {formatPrice(project.starting_price)}
+            </p>
+          </div>
+          {project.down_payment && (
+            <div className="bg-gradient-to-br from-[hsl(35,25%,88%)] to-[hsl(25,20%,92%)] rounded-lg p-3">
+              <p className="text-xs text-[hsl(210,60%,20%)]/60 mb-1">
+                Down Payment
+              </p>
+              <p className="text-lg font-bold text-[hsl(210,80%,12%)]">
+                {project.down_payment}%
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Delivery Date */}
+        {project.delivery_date && (
+          <div className="flex items-center gap-2 text-sm text-[hsl(210,60%,20%)]/70 mb-4">
+            <Calendar className="h-4 w-4 text-[hsl(45,85%,55%)]" />
+            <span>
+              Delivery:{" "}
+              {new Date(project.delivery_date).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+              })}
+            </span>
+          </div>
+        )}
+
+        {/* Amenities Preview */}
+        {project.amenities && project.amenities.length > 0 && (
+          <div className="mb-4">
+            <p className="text-xs text-[hsl(210,60%,20%)]/60 mb-2">
+              Key Amenities
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {project.amenities.slice(0, 3).map((amenity: string, idx: number) => (
+                <span
+                  key={idx}
+                  className="px-2 py-1 bg-[hsl(210,60%,20%)]/5 rounded text-xs text-[hsl(210,60%,20%)]/70"
+                >
+                  {amenity}
+                </span>
+              ))}
+              {project.amenities.length > 3 && (
+                <span className="px-2 py-1 bg-[hsl(210,60%,20%)]/5 rounded text-xs text-[hsl(210,60%,20%)]/70">
+                  +{project.amenities.length - 3} more
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* CTA Button */}
+        <button className="w-full px-4 py-3 bg-white border-2 border-[hsl(210,80%,12%)] text-[hsl(210,80%,12%)] rounded-lg font-semibold hover:bg-[hsl(210,80%,12%)] hover:text-white transition-all flex items-center justify-center gap-2 group-hover/card:border-[hsl(45,85%,55%)] group-hover/card:bg-[hsl(45,85%,55%)] group-hover/card:text-white">
+          View Details
+          <ExternalLink className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const SimilarProjects = ({ projects }: { projects: any[] }) => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const checkScroll = () => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      setCanScrollLeft(container.scrollLeft > 0);
+      setCanScrollRight(
+        container.scrollLeft < container.scrollWidth - container.clientWidth - 10
+      );
+    }
+  };
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener("scroll", checkScroll);
+      checkScroll();
+      return () => container.removeEventListener("scroll", checkScroll);
+    }
+  }, []);
+
+  const scroll = (direction: "left" | "right") => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      const scrollAmount = 400;
+      container.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  if (!projects || projects.length === 0) {
+    return null;
+  }
+
+  return (
+    <section id="similar-projects" className="relative">
+      <div className="mb-6">
+        <h2 className="text-3xl font-bold text-[hsl(210,80%,12%)] mb-2">
+          Similar Investment Opportunities
+        </h2>
+        <p className="text-[hsl(210,60%,20%)]/60">
+          Explore other projects that match your investment criteria
+        </p>
+      </div>
+
+      <div className="relative group">
+        {/* Scroll Buttons */}
+        {canScrollLeft && (
+          <button
+            onClick={() => scroll("left")}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/95 backdrop-blur-sm p-3 rounded-full shadow-[0_8px_30px_-8px_hsl(45,85%,55%,0.25)] hover:bg-white transition-all opacity-0 group-hover:opacity-100"
+            aria-label="Scroll left"
+          >
+            <ChevronLeft className="h-6 w-6 text-[hsl(210,80%,12%)]" />
+          </button>
+        )}
+
+        {canScrollRight && (
+          <button
+            onClick={() => scroll("right")}
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/95 backdrop-blur-sm p-3 rounded-full shadow-[0_8px_30px_-8px_hsl(45,85%,55%,0.25)] hover:bg-white transition-all opacity-0 group-hover:opacity-100"
+            aria-label="Scroll right"
+          >
+            <ChevronRight className="h-6 w-6 text-[hsl(210,80%,12%)]" />
+          </button>
+        )}
+
+        {/* Scrollable Container */}
+        <div
+          ref={scrollContainerRef}
+          className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        >
+          {projects.map((project, idx) => (
+            <div key={project.project_id || idx} className="snap-start">
+              <SimilarProjectCard project={project} />
+            </div>
+          ))}
+        </div>
+
+        {/* Gradient Overlays */}
+        {canScrollLeft && (
+          <div className="absolute left-0 top-0 bottom-4 w-20 bg-gradient-to-r from-[hsl(35,25%,88%)] to-transparent pointer-events-none" />
+        )}
+        {canScrollRight && (
+          <div className="absolute right-0 top-0 bottom-4 w-20 bg-gradient-to-l from-[hsl(25,20%,92%)] to-transparent pointer-events-none" />
+        )}
+      </div>
+
+      <style jsx>{`
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+    </section>
   );
 };
 
@@ -948,6 +1204,7 @@ export default function ProjectPage({ params }: PageProps) {
     { id: "sales-history", label: "Sales History" },
     { id: "amenities", label: "Amenities" },
     { id: "master-plan", label: "Master Plan" },
+    { id: "similar-projects", label: "Similar Projects" },
     { id: "location", label: "Location" },
     { id: "faqs", label: "FAQs" },
     { id: "ai-assistant", label: "Ask AI" },
@@ -1367,6 +1624,11 @@ export default function ProjectPage({ params }: PageProps) {
               </div>
             </section>
           )}
+
+        {/* Similar Projects */}
+        {project.similar_projects && project.similar_projects.length > 0 && (
+          <SimilarProjects projects={project.similar_projects} />
+        )}
 
         {/* FAQs */}
         {project.faqs && project.faqs.length > 0 && (

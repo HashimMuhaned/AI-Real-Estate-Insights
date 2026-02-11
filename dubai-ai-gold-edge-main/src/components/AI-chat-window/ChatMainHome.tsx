@@ -21,7 +21,7 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
   const [showCoachMark, setShowCoachMark] = useState(false);
   const [isButtonExpanded, setIsButtonExpanded] = useState(false);
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
-  
+
   const {
     messages,
     setMessages,
@@ -34,7 +34,7 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
     contextPrompt,
     setContextPrompt,
   } = useChat();
-  
+
   const [currentMessage, setCurrentMessage] = useState("");
   const [checkpointId, setCheckpointId] = useState<string | null>(null);
 
@@ -73,7 +73,7 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
 
     const stopExpansion = () => {
       setIsButtonExpanded(false);
-      
+
       // Clear text rotation
       if (textRotationTimerRef.current) {
         clearInterval(textRotationTimerRef.current);
@@ -84,7 +84,7 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
     const resetInactivityTimer = () => {
       // Clear existing timer
       clearTimeout(inactivityTimer);
-      
+
       // Only collapse if chat is open
       if (isChatOpen) {
         stopExpansion();
@@ -146,7 +146,7 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
   const failMessage = (
     id: string | number,
     message: string,
-    error?: { code: string; message: string }
+    error?: { code: string; message: string },
   ) => {
     setMessages((prev) =>
       prev.map((m) =>
@@ -157,14 +157,14 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
               isLoading: false,
               error,
             }
-          : m
-      )
+          : m,
+      ),
     );
   };
 
   const mergeMessageUpdate = (
     id: string | number,
-    patch: Partial<ChatMessage>
+    patch: Partial<ChatMessage>,
   ) => {
     setMessages((prev) =>
       prev.map((m) =>
@@ -174,7 +174,7 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
               ...patch,
 
               content:
-                patch.content !== undefined ? patch.content : m.content ?? "",
+                patch.content !== undefined ? patch.content : (m.content ?? ""),
 
               isLoading:
                 patch.isLoading !== undefined ? patch.isLoading : !!m.isLoading,
@@ -185,13 +185,13 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
                   : m.searchInfo,
 
               images:
-                patch.images !== undefined ? patch.images : m.images ?? [],
+                patch.images !== undefined ? patch.images : (m.images ?? []),
 
               followup:
                 patch.followup !== undefined ? patch.followup : m.followup,
             }
-          : m
-      )
+          : m,
+      ),
     );
   };
 
@@ -321,7 +321,7 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
           {
             code: "TIMEOUT",
             message: "No data received from server.",
-          }
+          },
         );
 
         if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
@@ -345,7 +345,7 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
             {
               code: "TIMEOUT",
               message: "Request exceeded maximum time limit.",
-            }
+            },
           );
         }
 
@@ -375,8 +375,8 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
                 ...m,
                 isLoading: false,
               }
-            : m
-        )
+            : m,
+        ),
       );
 
       pendingInputRef.current = null;
@@ -406,7 +406,7 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
             {
               code: parsed.code ?? "STREAM_ERROR",
               message: msg,
-            }
+            },
           );
 
           cleanup();
@@ -459,7 +459,7 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
           const rawUrls = parsed.urls ?? parsed.payload ?? [];
           const urls = safeJsonParse(
             rawUrls,
-            rawUrls instanceof Array ? rawUrls : []
+            rawUrls instanceof Array ? rawUrls : [],
           );
           const newSearchInfo = {
             stages: searchData
@@ -647,7 +647,7 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
       }
 
       console.log(
-        `Showing final error. Retry: ${isRetry}, Attempts: ${reconnectAttemptsRef.current}`
+        `Showing final error. Retry: ${isRetry}, Attempts: ${reconnectAttemptsRef.current}`,
       );
 
       if (partialData) {
@@ -657,7 +657,7 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
           {
             code: "PARTIAL_RESPONSE",
             message: "Connection lost mid-stream.",
-          }
+          },
         );
       } else {
         failMessage(
@@ -668,7 +668,7 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
           {
             code: "CONNECTION_FAILED",
             message: "Failed to establish SSE connection.",
-          }
+          },
         );
       }
 
@@ -695,16 +695,18 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
 
   // Generate contextual button text based on current rotation index
   const getContextText = (): string | null => {
-    if (!isButtonExpanded || !communityName) return null;
-    
+    if (!isButtonExpanded) return null;
+
     const textOptions = [
-      `Ask about ${communityName}`,
+      communityName ? `Ask about ${communityName}` : "Ask about this community",
       "What are the best projects here?",
       "Compare with other areas",
       "Is this a good investment?",
     ];
-    
-    return textOptions[currentTextIndex];
+
+    // ensure index is valid
+    const idx = Math.max(0, Math.min(currentTextIndex, textOptions.length - 1));
+    return textOptions[idx];
   };
 
   return (
@@ -729,7 +731,7 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
                 scale: 1,
                 y: 0,
                 width: isMaximized ? "97vw" : "32rem",
-                height: isMaximized ? "95vh" : "41.2rem",
+                height: isMaximized ? "95vh" : "95vh",
                 right: 12,
               }}
               exit={{ opacity: 0, scale: 0.9, y: 30 }}

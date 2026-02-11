@@ -1,16 +1,9 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
-// import { db_demo_projects } from "@/db";
 
-/**
- * Retrieves comprehensive project details by project name.
- * Includes developer, location, status, amenities, images, unit categories,
- * payment plans, timeline, agencies, gallery/media, sales history, and description.
- */
 export async function getProjectDetailsByName(projectName: string) {
   const result = await db.execute(sql`
     WITH 
-    -- Core project data (includes description column)
     project_base AS (
       SELECT
         p.project_id,
@@ -35,66 +28,43 @@ export async function getProjectDetailsByName(projectName: string) {
       FROM projects p
       WHERE p.project_name = ${projectName}
     ),
-
-    -- Amenities aggregation
     project_amenities_agg AS (
       SELECT
         pb.project_id,
-        COALESCE(
-          jsonb_agg(a.name ORDER BY a.name) FILTER (WHERE a.name IS NOT NULL),
-          '[]'::jsonb
-        ) AS amenities
+        COALESCE(jsonb_agg(a.name ORDER BY a.name) FILTER (WHERE a.name IS NOT NULL), '[]'::jsonb) AS amenities
       FROM project_base pb
       LEFT JOIN project_amenities pa ON pa.project_id = pb.project_id
       LEFT JOIN amenities a ON a.amenity_id = pa.amenity_id
       GROUP BY pb.project_id
     ),
-
-    -- Project images
     project_images_agg AS (
       SELECT
         pb.project_id,
         COALESCE(
-          jsonb_agg(
-            jsonb_build_object('image_url', pi.image_url)
-            ORDER BY pi.image_url
-          ) FILTER (WHERE pi.image_url IS NOT NULL),
+          jsonb_agg(jsonb_build_object('image_url', pi.image_url) ORDER BY pi.image_url)
+          FILTER (WHERE pi.image_url IS NOT NULL),
           '[]'::jsonb
         ) AS images
       FROM project_base pb
       LEFT JOIN project_images pi ON pi.project_id = pb.project_id
       GROUP BY pb.project_id
     ),
-
-    -- Property types
     property_types_agg AS (
       SELECT
         pb.project_id,
-        COALESCE(
-          jsonb_agg(ppt.property_type ORDER BY ppt.property_type) 
-          FILTER (WHERE ppt.property_type IS NOT NULL),
-          '[]'::jsonb
-        ) AS property_types
+        COALESCE(jsonb_agg(ppt.property_type ORDER BY ppt.property_type) FILTER (WHERE ppt.property_type IS NOT NULL), '[]'::jsonb) AS property_types
       FROM project_base pb
       LEFT JOIN project_property_types ppt ON ppt.project_id = pb.project_id
       GROUP BY pb.project_id
     ),
-
-    -- Bedroom counts
     bedroom_counts_agg AS (
       SELECT
         pb.project_id,
-        COALESCE(
-          jsonb_agg(pb2.bedroom_count ORDER BY pb2.bedroom_count) 
-          FILTER (WHERE pb2.bedroom_count IS NOT NULL),
-          '[]'::jsonb
-        ) AS bedroom_counts
+        COALESCE(jsonb_agg(pb2.bedroom_count ORDER BY pb2.bedroom_count) FILTER (WHERE pb2.bedroom_count IS NOT NULL), '[]'::jsonb) AS bedroom_counts
       FROM project_base pb
       LEFT JOIN project_bedrooms pb2 ON pb2.project_id = pb.project_id
       GROUP BY pb.project_id
     ),
-
-    -- Unit categories with layouts and floor plans
     unit_categories_agg AS (
       SELECT
         pb.project_id,
@@ -149,8 +119,6 @@ export async function getProjectDetailsByName(projectName: string) {
       ) uc ON uc.project_id = pb.project_id
       GROUP BY pb.project_id
     ),
-
-    -- Payment plans with phases and milestones
     payment_plans_agg AS (
       SELECT
         pb.project_id,
@@ -179,10 +147,8 @@ export async function getProjectDetailsByName(projectName: string) {
                     jsonb_build_object(
                       'milestone_id', m.milestone_id,
                       'label', m.label,
-                      'percentage', m.percentage,
-                      'sort_order', m.sort_order
+                      'percentage', m.percentage
                     )
-                    ORDER BY m.sort_order
                   )
                   FROM payment_plan_milestones m
                   WHERE m.phase_id = ph.phase_id),
@@ -200,8 +166,6 @@ export async function getProjectDetailsByName(projectName: string) {
       ) ppp ON ppp.project_id = pb.project_id
       GROUP BY pb.project_id
     ),
-
-    -- Construction timeline
     construction_timeline_agg AS (
       SELECT
         pb.project_id,
@@ -213,8 +177,7 @@ export async function getProjectDetailsByName(projectName: string) {
               'category', pct.category,
               'completed', pct.completed,
               'progress_percentage', pct.progress_percentage,
-              'phase_date', pct.phase_date,
-              'sort_order', pct.sort_order
+              'phase_date', pct.phase_date
             )
             ORDER BY pct.sort_order
           ) FILTER (WHERE pct.timeline_id IS NOT NULL),
@@ -224,8 +187,6 @@ export async function getProjectDetailsByName(projectName: string) {
       LEFT JOIN project_construction_timeline pct ON pct.project_id = pb.project_id
       GROUP BY pb.project_id
     ),
-
-    -- Gallery images
     gallery_agg AS (
       SELECT
         pb.project_id,
@@ -245,8 +206,6 @@ export async function getProjectDetailsByName(projectName: string) {
       LEFT JOIN project_gallery_images gi ON gi.project_id = pb.project_id
       GROUP BY pb.project_id
     ),
-
-    -- Media (images/videos)
     media_agg AS (
       SELECT
         pb.project_id,
@@ -264,8 +223,6 @@ export async function getProjectDetailsByName(projectName: string) {
       LEFT JOIN project_media pm ON pm.project_id = pb.project_id
       GROUP BY pb.project_id
     ),
-
-    -- Agencies
     agencies_agg AS (
       SELECT
         pb.project_id,
@@ -286,28 +243,6 @@ export async function getProjectDetailsByName(projectName: string) {
       LEFT JOIN agency ag ON ag.agency_id = pa.agency_id
       GROUP BY pb.project_id
     ),
-
-    -- Similar projects
-    similar_projects_agg AS (
-      SELECT
-        pb.project_id,
-        COALESCE(
-          jsonb_agg(
-            jsonb_build_object(
-              'project_id', sp.similar_project_id,
-              'sort_order', sp.sort_order,
-              'weight_ranking', sp.weight_ranking
-            )
-            ORDER BY sp.weight_ranking DESC NULLS LAST
-          ) FILTER (WHERE sp.similar_project_id IS NOT NULL),
-          '[]'::jsonb
-        ) AS similar_projects
-      FROM project_base pb
-      LEFT JOIN project_similar_projects sp ON sp.project_id = pb.project_id
-      GROUP BY pb.project_id
-    ),
-
-    -- Contacts
     contacts_agg AS (
       SELECT
         pb.project_id,
@@ -325,8 +260,6 @@ export async function getProjectDetailsByName(projectName: string) {
       LEFT JOIN project_contacts pc ON pc.project_id = pb.project_id
       GROUP BY pb.project_id
     ),
-
-    -- Sales history (explicitly from project_sales_history)
     project_sales_history_agg AS (
       SELECT
         pb.project_id,
@@ -347,8 +280,6 @@ export async function getProjectDetailsByName(projectName: string) {
       LEFT JOIN project_sales_history ph ON ph.project_id = pb.project_id
       GROUP BY pb.project_id
     ),
-
-    -- FAQs
     faqs_agg AS (
       SELECT
         pb.project_id,
@@ -366,8 +297,6 @@ export async function getProjectDetailsByName(projectName: string) {
       LEFT JOIN project_faqs pf ON pf.project_id = pb.project_id
       GROUP BY pb.project_id
     )
-
-    -- Final assembly (use LATERAL for single-row picks: developer, location, latest snapshot, master_plan)
     SELECT
       pb.project_id,
       pb.project_name,
@@ -379,14 +308,9 @@ export async function getProjectDetailsByName(projectName: string) {
       pb.raw_location_name,
       pb.description,
       pb.description_scraped_at,
-
-      -- developer and location selected via LATERAL guarantees single-row JSON or NULL
       di.developer,
       li.location,
-
-      -- latest snapshot status via LATERAL
       ps.status,
-
       paa.amenities,
       pia.images,
       pta.property_types,
@@ -402,10 +326,7 @@ export async function getProjectDetailsByName(projectName: string) {
       phagg.sales_history,
       fa.faqs,
       mpi.master_plan
-
     FROM project_base pb
-
-    -- developer (single JSON object or null)
     LEFT JOIN LATERAL (
       SELECT jsonb_build_object(
         'developer_id', d.developer_id,
@@ -416,8 +337,6 @@ export async function getProjectDetailsByName(projectName: string) {
       WHERE d.developer_id = pb.developer_id
       LIMIT 1
     ) di ON TRUE
-
-    -- location (single JSON object or null)
     LEFT JOIN LATERAL (
       SELECT jsonb_build_object(
         'location_id', l.location_id,
@@ -430,8 +349,6 @@ export async function getProjectDetailsByName(projectName: string) {
       WHERE l.location_id = pb.location_id
       LIMIT 1
     ) li ON TRUE
-
-    -- latest project_sales_snapshot (single latest snapshot per project)
     LEFT JOIN LATERAL (
       SELECT jsonb_build_object(
         'construction_phase', COALESCE(ps.construction_phase, pb.construction_phase),
@@ -450,8 +367,6 @@ export async function getProjectDetailsByName(projectName: string) {
       ORDER BY ps.updated_at DESC NULLS LAST
       LIMIT 1
     ) ps ON TRUE
-
-    -- optional: latest project_master_plan row (converted to JSONB)
     LEFT JOIN LATERAL (
       SELECT COALESCE(to_jsonb(pmp), '{}'::jsonb) AS master_plan
       FROM project_master_plan pmp
@@ -469,7 +384,55 @@ export async function getProjectDetailsByName(projectName: string) {
     LEFT JOIN gallery_agg ga ON ga.project_id = pb.project_id
     LEFT JOIN media_agg ma ON ma.project_id = pb.project_id
     LEFT JOIN agencies_agg aa ON aa.project_id = pb.project_id
-    LEFT JOIN similar_projects_agg spa ON spa.project_id = pb.project_id
+
+    -- detailed similar projects (no sort_order usage in subquery)
+    LEFT JOIN LATERAL (
+      SELECT COALESCE(jsonb_agg(sim) FILTER (WHERE sim IS NOT NULL), '[]'::jsonb) AS similar_projects
+      FROM (
+        SELECT
+          jsonb_build_object(
+            'project_id', sp.similar_project_id,
+            'project_name', p2.project_name,
+            'starting_price', p2.starting_price,
+            'down_payment', p2.down_payment_percentage,
+            'stock', p2.stock_availability,
+            'delivery_date', p2.delivery_date,
+            'hotness', p2.hotness_level,
+            'image', (
+              SELECT pi.image_url
+              FROM project_images pi
+              WHERE pi.project_id = p2.project_id
+              ORDER BY pi.image_url
+              LIMIT 1
+            ),
+            'property_types', COALESCE((
+              SELECT jsonb_agg(ppt.property_type ORDER BY ppt.property_type)
+              FROM project_property_types ppt
+              WHERE ppt.project_id = p2.project_id
+            ), '[]'::jsonb),
+            'amenities', COALESCE((
+              SELECT jsonb_agg(a.name ORDER BY a.name)
+              FROM project_amenities pa2
+              JOIN amenities a ON a.amenity_id = pa2.amenity_id
+              WHERE pa2.project_id = p2.project_id
+            ), '[]'::jsonb),
+            'developer', COALESCE((
+              SELECT jsonb_build_object('developer_id', d.developer_id, 'name', d.name, 'logo_url', d.logo_url)
+              FROM developers d
+              WHERE d.developer_id = p2.developer_id
+              LIMIT 1
+            ), 'null'::jsonb),
+            'sort_order', sp.sort_order,
+            'weight_ranking', sp.weight_ranking
+          ) AS sim
+        FROM project_similar_projects sp
+        JOIN projects p2 ON p2.project_id = sp.similar_project_id
+        WHERE sp.project_id = pb.project_id
+        ORDER BY sp.weight_ranking DESC NULLS LAST
+        LIMIT 8
+      ) t
+    ) spa ON TRUE
+
     LEFT JOIN contacts_agg ca ON ca.project_id = pb.project_id
     LEFT JOIN project_sales_history_agg phagg ON phagg.project_id = pb.project_id
     LEFT JOIN faqs_agg fa ON fa.project_id = pb.project_id
