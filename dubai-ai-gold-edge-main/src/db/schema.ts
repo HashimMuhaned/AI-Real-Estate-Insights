@@ -9,7 +9,8 @@ import {
   uniqueIndex,
   boolean,
   primaryKey,
-  unique
+  unique,
+  numeric
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -169,3 +170,25 @@ export const developers = pgTable(
     ),
   })
 );
+
+export const areaCommercialMapping = pgTable("area_commercial_mapping", {
+  mappingId: serial("mapping_id").primaryKey(),
+
+  areaId: integer("area_id"),
+  locationId: integer("location_id"),
+
+  officialAreaName: text("official_area_name_en").notNull(),
+  commercialName: text("commercial_name").notNull(),
+
+  matchType: text("match_type").notNull(),
+  confidenceScore: numeric("confidence_score", { precision: 5, scale: 4 }),
+
+  txCount: integer("tx_count"),
+  totalTx: integer("total_tx"),
+
+  confidenceLevel: text("confidence_level"),
+  isValidated: boolean("is_validated").default(false),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  validatedAt: timestamp("validated_at"),
+});

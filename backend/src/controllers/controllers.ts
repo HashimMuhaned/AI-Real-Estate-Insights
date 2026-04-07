@@ -8,7 +8,7 @@ import { AreaTransactions } from "../types/AreaTransactions";
 export const getAllAreas = async (
   offset: number = 0,
   limit: number = 20,
-  search: string | null = null
+  search: string | null = null,
 ): Promise<Area[]> => {
   let client;
   try {
@@ -42,12 +42,12 @@ export const getAllAreas = async (
         apt_current_rent_price: row.apt_current_rent_price
           ? Number(row.apt_current_rent_price)
           : null,
-      })
+      }),
     );
   } catch (err) {
     console.error(
       "❌ Error fetching current avg prices:",
-      (err as Error).message
+      (err as Error).message,
     );
     throw err;
   } finally {
@@ -58,7 +58,7 @@ export const getAllAreas = async (
 export const getAreasRentalYield = async (
   offset: number = 0,
   limit: number = 5,
-  search: string | null = null
+  search: string | null = null,
 ): Promise<AreaRentalYield[]> => {
   const areas: AreaRentalYield[] = [];
   let client;
@@ -110,7 +110,7 @@ export const getAreasRentalYield = async (
 export const getAreasPriceGrowthVacancyRisk = async (
   offset: number = 0,
   limit: number = 5,
-  search: string | null = null
+  search: string | null = null,
 ): Promise<AreaPriceGrowthVacancy[]> => {
   let client;
   try {
@@ -145,7 +145,7 @@ export const getAreasPriceGrowthVacancyRisk = async (
   } catch (err) {
     console.error(
       "❌ Error fetching area price growth/vacancy risk:",
-      (err as Error).message
+      (err as Error).message,
     );
     throw err;
   } finally {
@@ -156,7 +156,7 @@ export const getAreasPriceGrowthVacancyRisk = async (
 export const getAreasTransactionsTotalValue = async (
   offset: number = 0,
   limit: number = 20,
-  search: string | null = null
+  search: string | null = null,
 ): Promise<AreaTransactions[]> => {
   let client;
   try {
@@ -195,7 +195,7 @@ export const getAreasTransactionsTotalValue = async (
   } catch (err) {
     console.error(
       "❌ Error fetching transactions total value:",
-      (err as Error).message
+      (err as Error).message,
     );
     throw err;
   } finally {

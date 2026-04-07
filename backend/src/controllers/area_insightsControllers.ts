@@ -60,14 +60,14 @@ export const getTopProjects = async ({
     if (search) {
       params.push(`%${search}%`);
       whereClauses.push(
-        `LOWER(da.area_name_en) ILIKE LOWER($${params.length})`
+        `LOWER(da.area_name_en) ILIKE LOWER($${params.length})`,
       );
     }
 
     if (year && year !== "all") {
       params.push(parseInt(year, 10));
       whereClauses.push(
-        `EXTRACT(YEAR FROM t.instance_date) = $${params.length}`
+        `EXTRACT(YEAR FROM t.instance_date) = $${params.length}`,
       );
     }
 
@@ -207,7 +207,7 @@ export const getTopRentalYieldProjects = async ({
     if (search) {
       params.push(`%${search}%`);
       whereClauses.push(
-        `LOWER(da.area_name_en) ILIKE LOWER($${params.length})`
+        `LOWER(da.area_name_en) ILIKE LOWER($${params.length})`,
       );
     }
 
@@ -215,7 +215,7 @@ export const getTopRentalYieldProjects = async ({
     if (year && year !== "all") {
       params.push(parseInt(year, 10));
       whereClauses.push(
-        `EXTRACT(YEAR FROM t.instance_date) = $${params.length}`
+        `EXTRACT(YEAR FROM t.instance_date) = $${params.length}`,
       );
     }
 
@@ -335,7 +335,7 @@ export const getRentToPriceRatio = async (
   areaName: string | null,
   dateRange: string,
   propertyType: string,
-  bedrooms: string
+  bedrooms: string,
 ) => {
   const client = await pool.connect();
   try {
@@ -462,7 +462,7 @@ ORDER BY s.month, s.area_id, s.property_type, s.num_bedrooms;
 
 export const getVillaApartementPriceChange = async (
   areaName: string | null,
-  dateRange: string
+  dateRange: string,
 ) => {
   const client = await pool.connect();
 
@@ -547,7 +547,7 @@ export const getVillaApartementPriceChange = async (
   } catch (error) {
     console.error(
       "Error fetching villa/apartment quarterly price change:",
-      error
+      error,
     );
     throw error;
   } finally {
@@ -557,7 +557,7 @@ export const getVillaApartementPriceChange = async (
 
 export const getVillaApartmentPricePerBedRoomNumber = async (
   areaName: string | null,
-  dateRange: string
+  dateRange: string,
 ) => {
   const client = await pool.connect();
 
@@ -626,13 +626,13 @@ export const getVillaApartmentPricePerBedRoomNumber = async (
     console.log(
       "✅ getVillaApartmentPricePerBedRoomNumber:",
       result.rows.length,
-      "rows"
+      "rows",
     );
     return result.rows;
   } catch (error) {
     console.error(
       "❌ Error fetching villa/apartment average price per bedroom number:",
-      error
+      error,
     );
     throw error;
   } finally {
@@ -645,7 +645,7 @@ export const getRentalYieldByRoomAndYear = async (
   year: number | null = null,
   room_num: string | null = null,
   property_type: string = "both",
-  granularity: string = "yearly"
+  granularity: string = "yearly",
 ) => {
   const client = await pool.connect();
   try {

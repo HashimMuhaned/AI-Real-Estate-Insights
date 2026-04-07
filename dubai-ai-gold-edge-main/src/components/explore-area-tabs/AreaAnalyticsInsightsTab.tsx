@@ -17,13 +17,13 @@ type Props = {
   params: { areaName: string };
 };
 
-export default function AreaPageDetails() {
-  const { areaName } = useParams<{ areaName: string }>();
-  const name = areaName ? areaName.replace(/-/g, " ") : "";
+export default function AreaAnalyticsInsightsTab({ name }: { name: string }) {
+//   const { areaName } = useParams<{ areaName: string }>();
+//   const name = areaName ? areaName.replace(/-/g, " ") : "";
 
   return (
     <div>
-      <motion.section
+      {/* <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
@@ -46,7 +46,7 @@ export default function AreaPageDetails() {
             </p>
           </div>
         </div>
-      </motion.section>
+      </motion.section> */}
       <div>
         <Tabs defaultValue="general" className="p-4 md:p-6">
           <TabsList className="grid w-full grid-cols-1 md:grid-cols-5 my-[1rem]">

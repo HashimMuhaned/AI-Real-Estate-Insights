@@ -1,9 +1,17 @@
 scraping
 scraper
+explore-area-cards*
+explore-areas*
+communities*
+app\communities\page.tsx
+InfiniteList.tsx
+db_move_to_neon
+db_export_demo_hosting
 normalized_tables_current_schema.txt
 real_estate_backup_$(date +%Y%m%d).dump
 response.html
 db_move_to_neon
+page_xxx.tsx
 .venv
 .vscode
 .$Dubai Area Insight AI System.drawio.bkp
