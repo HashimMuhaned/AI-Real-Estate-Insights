@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation";
 import AuthButtons from "@/components/auth/AuthButtons";
 import Link from "next/link";
 import Image from "next/image";
-import Dubai_AI_Invest_logo_design_dark from "public/Dubai_AI_Invest_logo_design_dark.png";
-import Dubai_AI_Invest_logo_design from "public/Dubai_AI_Invest_logo_design.png";
+import Dubai_AI_Invest_logo_design_simple_dark from "public/Dubai_AI_Invest_logo_design_simple_dark.png";
+import Dubai_AI_Invest_logo_design_simple from "public/Dubai_AI_Invest_logo_design_simple.png";
 
 // ─── Route Config ─────────────────────────────────────────────
 const routeConfig: Record<
@@ -81,12 +81,13 @@ const Navbar = () => {
               <Image
                 src={
                   showLightLogo
-                    ? Dubai_AI_Invest_logo_design_dark
-                    : Dubai_AI_Invest_logo_design
+                    ? Dubai_AI_Invest_logo_design_simple_dark
+                    : Dubai_AI_Invest_logo_design_simple
                 }
                 alt="Dubai AI Invest"
                 priority
-                className="h-10 md:h-12 w-auto object-contain transition-all duration-300"
+                className="pt-4"
+                height={90}
               />
             </Link>
           </div>
