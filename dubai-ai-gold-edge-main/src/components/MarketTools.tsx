@@ -10,29 +10,34 @@ import SmartDealFinder from "@/components/market-tools/SmartDealFinder";
 export default function MarketTools() {
   return (
     <div className="min-h-screen bg-background pt-10">
-      {/* Header */}
-      <div className="text-center mb-2">
-        <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
-          Everything You Need to
-          <span className="text-accent"> Dominate </span>
-          Dubai Real Estate
-        </h2>
-        <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-          Our comprehensive platform combines cutting-edge AI technology with
-          deep market expertise to give you the competitive edge in Dubai's
-          property market.
-        </p>
-      </div>
+      {/* Wider container + less side padding on large screens */}
+      <div className="mx-auto max-w-[1600px] px-3 sm:px-4 md:px-6 lg:px-6 xl:px-4 2xl:px-2">
+        
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <h2 className="mb-4 text-3xl font-bold text-foreground sm:text-4xl md:text-5xl">
+            Everything You Need to
+            <span className="text-accent"> Dominate </span>
+            Dubai Real Estate
+          </h2>
 
-      {/* Grid */}
-      <div className="px-24 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <ROIYieldAnalyzer />
-          <PriceTrendTool />
-          <AreaComparison />
-          <TopProjects />
-          <SupplyDemand />
-          <SmartDealFinder />
+          <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg md:text-xl">
+            Our comprehensive platform combines cutting-edge AI technology with
+            deep market expertise to give you the competitive edge in Dubai&apos;s
+            property market.
+          </p>
+        </div>
+
+        {/* Grid */}
+        <div className="py-4 px-20 sm:py-6">
+          <div className="grid grid-cols-1 gap-5 lg:gap-6 xl:grid-cols-2">
+            <ROIYieldAnalyzer />
+            <PriceTrendTool />
+            <AreaComparison />
+            <TopProjects />
+            <SupplyDemand />
+            <SmartDealFinder />
+          </div>
         </div>
       </div>
     </div>

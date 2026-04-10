@@ -94,11 +94,11 @@ export const topProjects = [
   { name: "Sobha Hartland", area: "Dubai Hills", transactions: 295, prevTransactions: 260, trend: "up" },
   { name: "Damac Lagoons", area: "DAMAC Hills", transactions: 278, prevTransactions: 310, trend: "down" },
   { name: "Nakheel Palm", area: "Palm Jumeirah", transactions: 256, prevTransactions: 240, trend: "up" },
-  { name: "JVC District", area: "JVC", transactions: 245, prevTransactions: 200, trend: "up" },
-  { name: "Marina Gate", area: "Dubai Marina", transactions: 230, prevTransactions: 225, trend: "flat" },
-  { name: "Burj Royale", area: "Downtown Dubai", transactions: 215, prevTransactions: 190, trend: "up" },
-  { name: "Azizi Riviera", area: "Business Bay", transactions: 198, prevTransactions: 210, trend: "down" },
-  { name: "Jumeirah Living", area: "JLT", transactions: 182, prevTransactions: 170, trend: "up" },
+//   { name: "JVC District", area: "JVC", transactions: 245, prevTransactions: 200, trend: "up" },
+//   { name: "Marina Gate", area: "Dubai Marina", transactions: 230, prevTransactions: 225, trend: "flat" },
+//   { name: "Burj Royale", area: "Downtown Dubai", transactions: 215, prevTransactions: 190, trend: "up" },
+//   { name: "Azizi Riviera", area: "Business Bay", transactions: 198, prevTransactions: 210, trend: "down" },
+//   { name: "Jumeirah Living", area: "JLT", transactions: 182, prevTransactions: 170, trend: "up" },
 ];
 
 // Supply vs Demand data

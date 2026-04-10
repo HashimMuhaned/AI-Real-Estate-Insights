@@ -33,11 +33,10 @@ const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
 
-  const currentConfig =
-    routeConfig[pathname] ??
+  const currentConfig = routeConfig[pathname] ??
     routeConfig[
       Object.keys(routeConfig).find(
-        (route) => route !== "/" && pathname.startsWith(route)
+        (route) => route !== "/" && pathname.startsWith(route),
       ) ?? ""
     ] ?? { textColor: "dark", logo: "dark" };
 
@@ -68,14 +67,8 @@ const Navbar = () => {
           : "bg-transparent border-b border-transparent"
       }`}
     >
-      {/* subtle line on transparent */}
-      {!isScrolled && (
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-      )}
-
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between h-16">
-          
           <div className="flex items-center">
             <Link href="/" className="flex items-center">
               <Image
