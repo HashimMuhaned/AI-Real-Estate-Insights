@@ -5,7 +5,9 @@ import MarketTools from "@/components/MarketTools";
 import MarketReports from "@/components/MarketReports";
 import HowItWorks from "@/components/HowItWorks";
 import Pricing from "@/components/Pricing";
-import Footer from "@/components/Footer";
+import DubaiInvestmentOpportunity from "@/components/DubaiInvestmentOpportunity";
+import Developers from "@/components/ListingBestDevelopers";
+import AIAdvisorCTA from "@/components/AIAdvisorCTA";
 
 const page = () => {
   return (
@@ -14,10 +16,12 @@ const page = () => {
       <Hero />
       <Features />
       <MarketTools />
+      <DubaiInvestmentOpportunity />
+      <Developers />
       <MarketReports />
       <HowItWorks />
       <Pricing />
-      <Footer />
+      <AIAdvisorCTA />
     </div>
   );
 };
