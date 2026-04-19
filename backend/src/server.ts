@@ -1,16 +1,10 @@
-// require("dotenv").config();
-
 import express from "express";
-
 import cors from "cors";
-// const bodyParser = require("body-parser");
-// const cookieParser = require("cookie-parser");
 import routes from "./routes/routes.js";
 
 const app = express();
-const allowedOrigins = ["http://localhost:3000"];
 
-const PORT = 8080;
+const allowedOrigins = ["http://localhost:3000"];
 
 app.use(
   cors({
@@ -29,26 +23,23 @@ app.options("*", cors());
 
 app.use((req, res, next) => {
   if (req.method === "OPTIONS") {
-    res.sendStatus(204); // Respond successfully
-  } else {
-    next();
+    return res.sendStatus(204);
   }
+  next();
 });
 
-// middle ware
-// app.use(cookieParser());
-// app.use(bodyParser.json({ limit: "10mb" }));
-// app.use(bodyParser.urlencoded({ extended: true, limit: "10mb" }));
+// middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+
+// routes
 app.use("/api", routes);
 
-// debuggin purposes
+// debugging
 app.use((req, res, next) => {
   console.log(req.path, req.method);
   next();
 });
 
-app.listen(PORT);
-
-module.exports = app;
+// ✅ IMPORTANT: export app (ESM)
+export default app;
