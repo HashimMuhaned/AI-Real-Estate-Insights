@@ -1,5 +1,5 @@
 // const experess = require("express");
-import pool from "../dbconfig";
+import pool from "../dbconfig.js";
 import axios from "axios";
 import express, { Request, Response } from "express";
 import {
@@ -7,7 +7,7 @@ import {
   getAreasRentalYield,
   getAreasPriceGrowthVacancyRisk,
   getAreasTransactionsTotalValue,
-} from "../controllers/controllers";
+} from "../controllers/controllers.js";
 
 import {
   getTopProjects,
@@ -17,8 +17,8 @@ import {
   getVillaApartmentPricePerBedRoomNumber,
   getTopRentalYieldProjects,
   getRentalYieldByRoomAndYear,
-} from "../controllers/area_insightsControllers";
-import { summarizeRentToPriceRatio } from "../helper/aggregate_rent_to_price_ratio";
+} from "../controllers/area_insightsControllers.js";
+import { summarizeRentToPriceRatio } from "../helper/aggregate_rent_to_price_ratio.js";
 
 const router = express.Router();
 

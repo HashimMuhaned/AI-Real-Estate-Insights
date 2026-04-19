@@ -7,5 +7,5 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["backend/src/**/*", "api/**/*"]
+  "include": ["src/**/*", "api/**/*"]
 }
