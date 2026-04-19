@@ -22,7 +22,7 @@ import ToolHeader from "@/components/market-tools/ToolHeader";
 import YieldBadge from "./YieldBadge";
 import { priceTrendData, AREAS, formatCurrency } from "./data";
 
-export default function PriceTrendTool() {
+export default function PriceTrendTool({}) {
   const [selectedArea, setSelectedArea] = useState("Dubai Marina");
 
   const data = priceTrendData[selectedArea] || [];

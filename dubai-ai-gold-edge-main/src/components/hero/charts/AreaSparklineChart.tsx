@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 
 export default function AreaSparklineChart({ data, animKey }) {
-  console.log(data);
+  // console.log(data);
   const W = 340,
     H = 160;
   const padL = 44,
@@ -11,7 +11,6 @@ export default function AreaSparklineChart({ data, animKey }) {
   const iW = W - padL - padR,
     iH = H - padT - padB;
 
-  // ✅ Normalize data (IMPORTANT)
   const normalizedSeries = data.series.map((s) => {
     const vals = [...s.values];
     while (vals.length < data.months.length) {

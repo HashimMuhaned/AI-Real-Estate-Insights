@@ -5,25 +5,69 @@ import MarketTools from "@/components/MarketTools";
 import MarketReports from "@/components/MarketReports";
 import HowItWorks from "@/components/HowItWorks";
 import Pricing from "@/components/Pricing";
-import DubaiInvestmentOpportunity from "@/components/DubaiInvestmentOpportunity";
+import MarketOpportunities from "@/components/MarketOpportunities";
 import Developers from "@/components/ListingBestDevelopers";
 import AIAdvisorCTA from "@/components/AIAdvisorCTA";
 
-const page = () => {
+import { getAreaComparisonData } from "@/db/queries/market-tools/getAreaComparison";
+import { getTopProjects } from "@/db/queries/market-tools/getTopProjects";
+import { getSupplyDemand } from "@/db/queries/market-tools/getSupplyDemand";
+import { getYieldData } from "@/db/queries/market-tools/getYieldData";
+import { getPriceTrendData } from "@/db/queries/market-tools/getPriceTrend";
+import { getRoiAreas } from "@/db/queries/opportunities/getRoiAreas";
+import { getOffPlanProjects } from "@/db/queries/opportunities/getOffPlanProjects";
+import { getUndervaluedCommunities } from "@/db/queries/opportunities/getUndervaluedCommunities";
+import { getDevelopers } from "@/db/queries/developers/getDevelopers";
+
+export default async function Page() {
+  console.log("🔥 HOME PAGE FETCHING DATA");
+
+  const [
+    areaComparisonData,
+    topProjects,
+    yieldData,
+    supplyDemandData,
+    priceTrend,
+    roiAreas,
+    offPlanProjects,
+    undervaluedCommunities,
+    developers
+  ] = await Promise.all([
+    getAreaComparisonData(),
+    getTopProjects(),
+    getYieldData(),
+    getSupplyDemand(),
+    getPriceTrendData(),
+    getRoiAreas(),
+    getOffPlanProjects(),
+    getUndervaluedCommunities(5),
+    getDevelopers()
+  ]);
+
+  console.log("area comparison", areaComparisonData);
   return (
     <div className="min-h-screen">
-      {/* <Navbar /> */}
       <Hero />
       <Features />
-      <MarketTools />
-      <DubaiInvestmentOpportunity />
-      <Developers />
+
+      <MarketTools
+        areaComparisonData={areaComparisonData}
+        topProjects={topProjects}
+        yieldData={yieldData}
+        supplyDemandData={supplyDemandData}
+        priceTrendData={priceTrend}
+      />
+
+      <MarketOpportunities
+        roiAreas={roiAreas}
+        offPlanProjects={offPlanProjects}
+        undervaluedCommunities={undervaluedCommunities}
+      />
+      <Developers developers={developers}/>
       <MarketReports />
       <HowItWorks />
       <Pricing />
       <AIAdvisorCTA />
     </div>
   );
-};
-
-export default page;
+}

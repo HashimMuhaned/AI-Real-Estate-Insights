@@ -55,6 +55,7 @@ export async function getOffPlanProjects() {
   `);
 
   const rows = result as any[];
+  console.log("get offplan hero card", rows)
 
   const bestROI = rows[0]?.roi ? `${rows[0].roi}%` : "0%";
 

@@ -10,16 +10,11 @@ type Developer = {
   logo: string;
 };
 
-const developers: Developer[] = [
-  { name: "Emaar Properties", projects: 224, logo: "/developers/emaar.png" },
-  { name: "Azizi Developments", projects: 112, logo: "/developers/azizi.png" },
-  { name: "Aldar Properties PJSC", projects: 101, logo: "/developers/aldar.png" },
-  { name: "Sobha Realty", projects: 80, logo: "/developers/sobha.png" },
-  { name: "Damac Properties", projects: 80, logo: "/developers/damac.png" },
-  { name: "Ellington Properties", projects: 70, logo: "/developers/ellington.png" },
-];
+type DevelopersProps = {
+  developers: Developer[];
+};
 
-export default function Developers() {
+export default function Developers({ developers }: DevelopersProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: "left" | "right") => {
@@ -69,7 +64,7 @@ export default function Developers() {
           >
             {/* Logo */}
             <div className="flex items-center justify-center flex-1">
-              <Image
+              <img
                 src={dev.logo}
                 alt={dev.name}
                 width={140}

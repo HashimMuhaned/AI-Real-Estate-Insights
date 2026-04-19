@@ -5,13 +5,7 @@ import { Sparkles, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ToolHeader from "./ToolHeader";
 import YieldBadge from "./YieldBadge";
-import {
-  AREAS,
-  areaComparisonData,
-  computeSmartDealScore,
-  getSmartDealTag,
-  formatCurrency,
-} from "./data";
+import { computeSmartDealScore, getSmartDealTag, formatCurrency } from "./data";
 
 type ScoreRingProps = {
   score: number;
@@ -28,7 +22,7 @@ function ScoreRing({ score }: ScoreRingProps) {
         : score >= 40
           ? "hsl(30 90% 55%)"
           : "hsl(0 84% 60%)";
-
+  console.log(score);
   return (
     <div className="relative h-16 w-16 shrink-0 sm:h-20 sm:w-20">
       <svg className="h-16 w-16 -rotate-90 sm:h-20 sm:w-20" viewBox="0 0 80 80">
@@ -63,16 +57,34 @@ function ScoreRing({ score }: ScoreRingProps) {
   );
 }
 
-export default function SmartDealFinder() {
+export default function SmartDealFinder({
+  areaComparisonData,
+  topProjects,
+  supplyDemandData,
+}) {
+  console.log(areaComparisonData);
   const deals = useMemo(() => {
-    return AREAS.map((area) => {
-      const score = computeSmartDealScore(area);
-      const tag = getSmartDealTag(score);
-      const data = areaComparisonData[area];
+    const areas = Object.keys(areaComparisonData || {});
 
-      return { area, score, tag, ...data };
-    }).sort((a, b) => b.score - a.score);
-  }, []);
+    return areas
+      .map((area) => {
+        const data = areaComparisonData[area];
+        if (!data) return null;
+
+        const score = computeSmartDealScore(
+          area,
+          data,
+          areaComparisonData,
+          topProjects,
+          supplyDemandData,
+        );
+        const tag = getSmartDealTag(score);
+
+        return { area, score, tag, ...data };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score);
+  }, [areaComparisonData]); // ✅ FIXED
 
   return (
     <div className="luxury-card relative overflow-hidden rounded-2xl p-4 sm:p-5 lg:p-6">
