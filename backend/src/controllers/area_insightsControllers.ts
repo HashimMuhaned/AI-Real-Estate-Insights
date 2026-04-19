@@ -1,6 +1,6 @@
-import pool from "../dbconfig";
-import { Project } from "../types/topProjects";
-import { RentToPriceParams } from "../types/RentToPriceRation";
+import pool from "../dbconfig.js";
+import { Project } from "../types/topProjects.js";
+import { RentToPriceParams } from "../types/RentToPriceRation.js";
 
 export const getAreaOverView = async (search: string | null = null) => {
   const client = await pool.connect();

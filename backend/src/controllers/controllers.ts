@@ -1,9 +1,9 @@
 import { get } from "http";
-import pool from "../dbconfig";
-import { Area } from "../types/areas";
-import { AreaRentalYield } from "../types/areaYeild";
-import { AreaPriceGrowthVacancy } from "../types/AreaPriceGrowthVacancy";
-import { AreaTransactions } from "../types/AreaTransactions";
+import pool from "../dbconfig.js";
+import { Area } from "../types/areas.js";
+import { AreaRentalYield } from "../types/areaYeild.js";
+import { AreaPriceGrowthVacancy } from "../types/AreaPriceGrowthVacancy.js";
+import { AreaTransactions } from "../types/AreaTransactions.js";
 
 export const getAllAreas = async (
   offset: number = 0,

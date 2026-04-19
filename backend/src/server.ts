@@ -41,5 +41,4 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ IMPORTANT: export app (ESM)
 export default app;
