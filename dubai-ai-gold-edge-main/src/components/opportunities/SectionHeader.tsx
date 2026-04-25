@@ -2,8 +2,16 @@
 
 import React from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 export default function SectionHeader({ title, subtitle, ctaLabel, onCta }) {
+  const hrefMap: Record<string, string> = {
+    "Check all areas": "/locations",
+    "Check all communities": "/locations",
+    "Off-Plan Opportunities": "/new-projects",
+  };
+
+  const href = hrefMap[ctaLabel] || "/";
   return (
     <motion.div
       initial={{ opacity: 0, y: -12 }}
@@ -23,15 +31,14 @@ export default function SectionHeader({ title, subtitle, ctaLabel, onCta }) {
         <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
       </div>
 
-      <motion.button
-        whileHover={{ scale: 1.04 }}
-        whileTap={{ scale: 0.96 }}
+      <Link
         onClick={onCta}
+        href={href}
         className="shrink-0 flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl border-[1.5px] border-primary bg-transparent text-primary whitespace-nowrap cursor-pointer transition-colors hover:bg-primary hover:text-primary-foreground"
       >
         <span>{ctaLabel}</span>
         <span className="text-base">→</span>
-      </motion.button>
+      </Link>
     </motion.div>
   );
 }

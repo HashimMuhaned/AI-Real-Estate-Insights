@@ -13,6 +13,8 @@ const containerVariants = {
   visible: { transition: { staggerChildren: 0.1 } },
 };
 
+const cardGrid = "grid gap-4 sm:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+
 export default function MarketOpportunities({
   roiAreas,
   offPlanProjects,
@@ -20,17 +22,18 @@ export default function MarketOpportunities({
 }) {
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
-      <div className="relative z-10 max-w-[1280px] mx-auto px-6 py-16 pb-20">
+      <div className="relative z-10 max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 pb-16 sm:pb-20">
+
         {/* Page Header */}
-        <div className="mb-14 max-w-[900px] mx-auto text-center">
+        <div className="mb-10 sm:mb-14 max-w-[900px] mx-auto text-center px-2">
           <h1
             className="font-playfair font-bold leading-tight text-foreground"
-            style={{ fontSize: "clamp(32px, 5vw, 52px)" }}
+            style={{ fontSize: "clamp(26px, 5vw, 52px)" }}
           >
             Market <em className="italic text-accent">Opportunities</em> at a
             Glance
           </h1>
-          <p className="mt-3.5 text-[15px] leading-relaxed text-muted-foreground max-w-[520px] mx-auto">
+          <p className="mt-3 sm:mt-3.5 text-sm sm:text-[15px] leading-relaxed text-muted-foreground max-w-[520px] mx-auto">
             AI-curated insights across Dubai's most dynamic real estate
             corridors — ranked by yield, momentum, and value potential.
           </p>
@@ -48,10 +51,7 @@ export default function MarketOpportunities({
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.1 }}
-          className="grid gap-6"
-          style={{
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          }}
+          className={cardGrid}
         >
           {roiAreas.map((area) => (
             <ROICard key={area.name} area={area} />
@@ -72,10 +72,7 @@ export default function MarketOpportunities({
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.1 }}
-          className="grid gap-6"
-          style={{
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          }}
+          className={cardGrid}
         >
           {offPlanProjects.map((project) => (
             <OffPlanCard key={project.name} project={project} />
@@ -96,15 +93,13 @@ export default function MarketOpportunities({
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, amount: 0.1 }}
-          className="grid gap-6"
-          style={{
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          }}
+          className={cardGrid}
         >
           {undervaluedCommunities.map((community) => (
             <UndervaluedCard key={community.name} community={community} />
           ))}
         </motion.div>
+
       </div>
     </div>
   );

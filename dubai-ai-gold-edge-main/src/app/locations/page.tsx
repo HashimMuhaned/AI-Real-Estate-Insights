@@ -17,7 +17,7 @@ import {
   ArrowDownRight,
   ChevronDown,
   X,
-  Info,
+  SlidersHorizontal,
 } from "lucide-react";
 import { BsStars } from "react-icons/bs";
 import Link from "next/link";
@@ -41,22 +41,40 @@ interface AreaData {
 
 /* ─── Skeleton Card ─────────────────────────────────────────── */
 const SkeletonCard = () => (
-  <Card className="overflow-hidden rounded-2xl border border-border bg-card animate-pulse">
-    <div className="h-52 bg-muted" />
-    <CardContent className="p-5 space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="h-14 rounded-xl bg-muted" />
-        <div className="h-14 rounded-xl bg-muted" />
+  <Card className="w-full overflow-hidden rounded-2xl border border-border bg-card animate-pulse">
+    <div className="h-40 sm:h-48 bg-muted" />
+    <CardContent className="p-3 sm:p-4 space-y-2.5">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="h-12 sm:h-14 rounded-xl bg-muted" />
+        <div className="h-12 sm:h-14 rounded-xl bg-muted" />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="h-14 rounded-xl bg-muted" />
-        <div className="h-14 rounded-xl bg-muted" />
+      <div className="grid grid-cols-2 gap-2">
+        <div className="h-12 sm:h-14 rounded-xl bg-muted" />
+        <div className="h-12 sm:h-14 rounded-xl bg-muted" />
       </div>
       <div className="flex gap-2">
-        <div className="h-8 flex-1 rounded-lg bg-muted" />
-        <div className="h-8 flex-1 rounded-lg bg-muted" />
+        <div className="h-7 flex-1 rounded-lg bg-muted" />
+        <div className="h-7 flex-1 rounded-lg bg-muted" />
       </div>
-      <div className="h-11 rounded-xl bg-muted" />
+      <div className="h-10 rounded-xl bg-muted" />
+    </CardContent>
+  </Card>
+);
+
+/* ─── Skeleton Sidebar ──────────────────────────────────────── */
+const SkeletonSidebar = () => (
+  <Card className="rounded-2xl border border-border bg-card animate-pulse">
+    <CardContent className="p-4 space-y-4">
+      <div className="h-9 rounded-lg bg-muted" />
+      <div className="h-px bg-muted" />
+      <div className="h-9 rounded-lg bg-muted" />
+      <div className="space-y-2">
+        <div className="h-9 rounded-lg bg-muted" />
+        <div className="h-9 rounded-lg bg-muted" />
+        <div className="h-9 rounded-lg bg-muted" />
+      </div>
+      <div className="h-px bg-muted" />
+      <div className="h-10 rounded-xl bg-muted" />
     </CardContent>
   </Card>
 );
@@ -71,10 +89,10 @@ const AreasPage = () => {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"yield" | "growth" | "risk">("yield");
   const [priceRange, setPriceRange] = useState("all");
-  const [tooltipOpen, setTooltipOpen] = useState(false);
-  const tooltipRef = useRef<HTMLDivElement>(null);
-  const { setAreaContext, setContextPrompt, openChat } = useChat();
+  // Open by default — only collapses on small screens
+  const [filtersOpen, setFiltersOpen] = useState(true);
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const { setAreaContext, setContextPrompt, openChat } = useChat();
 
   const handleOpenAI = () => {
     setAreaContext((prev) => ({
@@ -83,7 +101,6 @@ const AreasPage = () => {
       sortBy,
       priceRange,
     }));
-
     setContextPrompt({
       topic: "Dubai Real Estate Investment",
       question: "What are the best areas to invest in?",
@@ -91,27 +108,12 @@ const AreasPage = () => {
         priceRange === "all" ? "all price ranges" : priceRange
       } and sorting by ${sortBy}. Help them identify the best areas to invest in based on yield, growth potential, and risk profile. Ask clarifying questions about their budget, investment goals, and risk tolerance to give personalized recommendations.`,
     });
-
     setAiModalOpen(false);
     openChat();
   };
 
   useEffect(() => {
     fetchAreas();
-  }, []);
-
-  /* Close tooltip on outside click */
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (
-        tooltipRef.current &&
-        !tooltipRef.current.contains(e.target as Node)
-      ) {
-        setTooltipOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
   const fetchAreas = async () => {
@@ -137,12 +139,12 @@ const AreasPage = () => {
   };
 
   const filteredAreas = areas.filter((area) => {
-    const searchLower = searchTerm.toLowerCase();
+    const s = searchTerm.toLowerCase();
     const matchesSearch =
-      area.area_id.toString().includes(searchLower) ||
-      area.best_segment.toLowerCase().includes(searchLower) ||
-      area.location_name.toLowerCase().includes(searchLower) ||
-      area.area_name.toLowerCase().includes(searchLower);
+      area.area_id.toString().includes(s) ||
+      area.best_segment.toLowerCase().includes(s) ||
+      area.location_name.toLowerCase().includes(s) ||
+      area.area_name.toLowerCase().includes(s);
 
     const salePrice = parseFloat(area.avg_sale_price);
     let matchesPrice = true;
@@ -196,18 +198,218 @@ const AreasPage = () => {
     return "🏢";
   };
 
-  const aiCapabilities = [
-    { icon: TrendingUp, text: "Personalized investment picks" },
-    { icon: Shield, text: "Risk assessment by profile" },
-    { icon: Activity, text: "ROI projections & forecasts" },
-    { icon: MapPin, text: "Best areas for your budget" },
-    { icon: Sparkles, text: "Market trend analysis" },
-  ];
+  // ── Inline filter panel JSX (NOT a nested component — avoids remount on every render)
+  const filterPanelContent = (
+    <div className="space-y-4">
+      {/* Search */}
+      <div className="space-y-1.5">
+        <label className="font-semibold text-sm flex items-center gap-2 text-foreground">
+          <Search className="w-4 h-4 text-muted-foreground" />
+          Search
+        </label>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Area name, location..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-8 py-2.5 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-background text-sm text-foreground placeholder:text-muted-foreground"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="border-t border-border" />
+
+      {/* Price Range */}
+      <div className="space-y-1.5">
+        <label className="font-semibold text-sm flex items-center gap-2 text-foreground">
+          <div
+            className="w-1 h-4 rounded-full"
+            style={{ background: "hsl(var(--accent))" }}
+          />
+          Price Range
+        </label>
+        <div className="relative">
+          <select
+            value={priceRange}
+            onChange={(e) => setPriceRange(e.target.value)}
+            className="w-full appearance-none px-3 py-2.5 pr-10 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background cursor-pointer transition-all text-sm font-medium text-foreground"
+          >
+            <option value="all">All Prices</option>
+            <option value="under1m">Under AED 1M</option>
+            <option value="1m-3m">AED 1M – 3M</option>
+            <option value="3m-5m">AED 3M – 5M</option>
+            <option value="over5m">Over AED 5M</option>
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        </div>
+      </div>
+
+      {/* Sort By */}
+      <div className="space-y-1.5">
+        <label className="font-semibold text-sm flex items-center gap-2 text-foreground">
+          <div className="w-1 h-4 bg-primary rounded-full" />
+          Sort By
+        </label>
+        <div className="flex flex-col gap-2">
+          {(
+            [
+              { key: "yield", label: "Highest Yield", icon: TrendingUp },
+              { key: "growth", label: "Most Growth", icon: Activity },
+              { key: "risk", label: "Lowest Risk", icon: Shield },
+            ] as const
+          ).map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setSortBy(key)}
+              className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg border-2 transition-all text-sm font-medium text-left ${
+                sortBy === key
+                  ? "border-primary text-primary-foreground"
+                  : "bg-background border-border text-foreground hover:bg-muted"
+              }`}
+              style={
+                sortBy === key ? { background: "hsl(var(--primary))" } : {}
+              }
+            >
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="border-t border-border" />
+
+      {/* AI Button */}
+      <div className="space-y-2">
+        <button
+          onClick={handleOpenAI}
+          className="w-full px-4 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 hover:opacity-90 active:scale-95"
+          style={{
+            background: "hsl(var(--primary))",
+            color: "hsl(var(--primary-foreground))",
+          }}
+        >
+          <BsStars className="text-sm flex-shrink-0" />
+          Get AI Recommendations
+        </button>
+        <div className="text-center">
+          <button
+            onClick={() => setAiModalOpen(true)}
+            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+          >
+            What can the AI do for me?
+          </button>
+        </div>
+      </div>
+
+      {/* Active Filters */}
+      {hasActiveFilters && (
+        <>
+          <div className="border-t border-border" />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">
+                Active Filters
+              </span>
+              <button
+                onClick={clearAllFilters}
+                className="text-xs font-semibold underline text-primary hover:opacity-70 transition-opacity"
+              >
+                Clear all
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {searchTerm && (
+                <span
+                  className="px-2.5 py-1 rounded-full text-xs flex items-center gap-1 font-medium"
+                  style={{
+                    background: "hsl(var(--primary) / 0.1)",
+                    color: "hsl(var(--primary))",
+                  }}
+                >
+                  "
+                  {searchTerm.length > 10
+                    ? searchTerm.slice(0, 10) + "…"
+                    : searchTerm}
+                  "
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="hover:opacity-70"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              )}
+              {priceRange !== "all" && (
+                <span
+                  className="px-2.5 py-1 rounded-full text-xs flex items-center gap-1 font-medium"
+                  style={{
+                    background: "hsl(var(--accent) / 0.15)",
+                    color: "hsl(var(--primary))",
+                  }}
+                >
+                  {priceRangeLabel(priceRange)}
+                  <button
+                    onClick={() => setPriceRange("all")}
+                    className="hover:opacity-70"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              )}
+              {sortBy !== "yield" && (
+                <span
+                  className="px-2.5 py-1 rounded-full text-xs flex items-center gap-1 font-medium"
+                  style={{
+                    background: "hsl(var(--primary) / 0.1)",
+                    color: "hsl(var(--primary))",
+                  }}
+                >
+                  {sortBy === "growth" ? "Growth" : "Low Risk"}
+                  <button
+                    onClick={() => setSortBy("yield")}
+                    className="hover:opacity-70"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Results count */}
+      <div className="border-t border-border pt-3">
+        <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted">
+          <span className="text-xs text-muted-foreground font-medium">
+            Showing results
+          </span>
+          <span
+            className="text-xs font-bold px-2.5 py-0.5 rounded-full text-primary-foreground"
+            style={{ background: "hsl(var(--primary))" }}
+          >
+            {loading ? "…" : `${sortedAreas.length} areas`}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background">
       {/* ── Hero ─────────────────────────────────────────────── */}
-      <section className="relative pt-28 pb-20 overflow-hidden">
+      <section className="relative pt-28 pb-16 sm:pb-20 overflow-hidden">
         <div
           className="absolute inset-0"
           style={{
@@ -224,7 +426,6 @@ const AreasPage = () => {
               "linear-gradient(135deg, hsl(var(--primary) / 0.88), hsl(var(--primary) / 0.72))",
           }}
         />
-        {/* Subtle geometric overlay */}
         <div className="absolute inset-0 hero-pattern opacity-40" />
 
         <div className="container mx-auto px-4 relative z-10">
@@ -244,18 +445,17 @@ const AreasPage = () => {
                 Dubai Real Estate Markets
               </span>
             </div>
-            <h1 className="text-5xl md:text-6xl font-bold mb-5 tracking-tight leading-tight">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-5 tracking-tight leading-tight">
               Discover Prime Investment Areas
             </h1>
-            <p className="text-lg text-primary-foreground/80 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-lg text-primary-foreground/80 max-w-2xl mx-auto leading-relaxed">
               Explore data-driven insights across Dubai's most lucrative
               neighborhoods.
             </p>
 
-            {/* Hero stats bar */}
             {!loading && areas.length > 0 && (
               <div
-                className="mt-10 inline-flex gap-8 px-8 py-4 rounded-2xl backdrop-blur-sm border border-white/10"
+                className="mt-8 sm:mt-10 inline-flex gap-5 sm:gap-8 px-5 sm:px-8 py-4 rounded-2xl backdrop-blur-sm border border-white/10"
                 style={{ background: "hsl(var(--primary) / 0.4)" }}
               >
                 {[
@@ -273,12 +473,12 @@ const AreasPage = () => {
                 ].map((stat, idx) => (
                   <div key={idx} className="text-center">
                     <div
-                      className="text-2xl font-bold"
+                      className="text-xl sm:text-2xl font-bold"
                       style={{ color: "hsl(var(--accent))" }}
                     >
                       {stat.value}
                     </div>
-                    <div className="text-xs text-primary-foreground/60 mt-0.5 font-medium uppercase tracking-wide">
+                    <div className="text-[10px] sm:text-xs text-primary-foreground/60 mt-0.5 font-medium uppercase tracking-wide">
                       {stat.label}
                     </div>
                   </div>
@@ -290,11 +490,11 @@ const AreasPage = () => {
       </section>
 
       {/* ── Mode Toggle ──────────────────────────────────────── */}
-      <section className="py-6 bg-card border-b border-border shadow-sm">
+      <section className="py-5 sm:py-6 bg-card border-b border-border shadow-sm">
         <div className="container mx-auto px-4">
-          <div className="max-w-7xl mx-auto flex flex-col items-center gap-4 text-center">
+          <div className="max-w-7xl mx-auto flex flex-col items-center gap-3 text-center">
             <div>
-              <h2 className="text-2xl font-bold text-foreground">
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground">
                 What are you looking for?
               </h2>
               <p className="text-muted-foreground text-sm mt-1">
@@ -334,236 +534,112 @@ const AreasPage = () => {
       </section>
 
       {/* ── Main: Sidebar + Grid ─────────────────────────────── */}
-      <section className="py-10">
-        <div className="container mx-auto">
-          <div className="flex flex-col lg:flex-row gap-8 items-start">
+      <section className="py-6 sm:py-10">
+        <div className="w-full max-w-[1400px] mx-auto px-4">
+          <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-stretch lg:items-start">
+
+            {/* ── SIDEBAR ── */}
             <aside
-              className="w-full lg:w-72 flex-shrink-0 lg:sticky lg:top-6"
+              className="w-full lg:w-72 flex-shrink-0 lg:sticky lg:top-6 mx-auto lg:mx-0 max-w-sm sm:max-w-none"
               style={{ alignSelf: "flex-start" }}
             >
-              <Card className="rounded-2xl overflow-visible shadow-md border border-border bg-card">
-                <CardContent className="p-4 space-y-4">
-                  {/* Search */}
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-sm flex items-center gap-2 text-foreground">
-                      <Search className="w-4 h-4 text-muted-foreground" />
-                      Search
-                    </label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                      <input
-                        type="text"
-                        placeholder="Area name, location..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-8 py-2.5 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-background text-sm text-foreground placeholder:text-muted-foreground"
+              {loading ? (
+                <SkeletonSidebar />
+              ) : (
+                <Card className="rounded-2xl overflow-visible shadow-md border border-border bg-card">
+                  <CardContent className="p-4 space-y-0">
+
+                    {/* ── Toggle button: only shown on small screens ── */}
+                    <button
+                      onClick={() => setFiltersOpen((v) => !v)}
+                      className="lg:hidden w-full flex items-center justify-between py-1 group"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-semibold text-sm text-foreground">
+                          Filters & Sort
+                        </span>
+                        {hasActiveFilters && (
+                          <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-primary-foreground"
+                            style={{ background: "hsl(var(--primary))" }}
+                          >
+                            {[
+                              searchTerm ? 1 : 0,
+                              priceRange !== "all" ? 1 : 0,
+                              sortBy !== "yield" ? 1 : 0,
+                            ].reduce((a, b) => a + b, 0)}{" "}
+                            active
+                          </span>
+                        )}
+                      </div>
+                      <ChevronDown
+                        className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${
+                          filtersOpen ? "rotate-180" : "rotate-0"
+                        }`}
                       />
-                      {searchTerm && (
-                        <button
-                          onClick={() => setSearchTerm("")}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    </button>
+
+                    {/* ── Static header on large screens ── */}
+                    <div className="hidden lg:flex items-center gap-2.5 py-1 mb-4">
+                      <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+                      <span className="font-semibold text-sm text-foreground">
+                        Filters & Sort
+                      </span>
+                      {hasActiveFilters && (
+                        <span
+                          className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-primary-foreground"
+                          style={{ background: "hsl(var(--primary))" }}
                         >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
+                          {[
+                            searchTerm ? 1 : 0,
+                            priceRange !== "all" ? 1 : 0,
+                            sortBy !== "yield" ? 1 : 0,
+                          ].reduce((a, b) => a + b, 0)}{" "}
+                          active
+                        </span>
                       )}
                     </div>
-                  </div>
 
-                  <div className="border-t border-border" />
-
-                  {/* Price Range */}
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-sm flex items-center gap-2 text-foreground">
-                      <div
-                        className="w-1 h-4 rounded-full"
-                        style={{ background: "hsl(var(--accent))" }}
-                      />
-                      Price Range
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={priceRange}
-                        onChange={(e) => setPriceRange(e.target.value)}
-                        className="w-full appearance-none px-3 py-2.5 pr-10 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background cursor-pointer transition-all text-sm font-medium text-foreground"
-                      >
-                        <option value="all">All Prices</option>
-                        <option value="under1m">Under AED 1M</option>
-                        <option value="1m-3m">AED 1M – 3M</option>
-                        <option value="3m-5m">AED 3M – 5M</option>
-                        <option value="over5m">Over AED 5M</option>
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    {/* ── Collapsible on small screens, always open on large ── */}
+                    {/* On lg+: always render. On <lg: animate open/close */}
+                    <div className="hidden lg:block mt-0">
+                      {filterPanelContent}
                     </div>
-                  </div>
-
-                  {/* Sort By */}
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-sm flex items-center gap-2 text-foreground">
-                      <div className="w-1 h-4 bg-primary rounded-full" />
-                      Sort By
-                    </label>
-                    <div className="flex flex-col gap-2">
-                      {(
-                        [
-                          {
-                            key: "yield",
-                            label: "Highest Yield",
-                            icon: TrendingUp,
-                          },
-                          {
-                            key: "growth",
-                            label: "Most Growth",
-                            icon: Activity,
-                          },
-                          { key: "risk", label: "Lowest Risk", icon: Shield },
-                        ] as const
-                      ).map(({ key, label, icon: Icon }) => (
-                        <button
-                          key={key}
-                          onClick={() => setSortBy(key)}
-                          className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg border-2 transition-all text-sm font-medium text-left ${
-                            sortBy === key
-                              ? "border-primary text-primary-foreground"
-                              : "bg-background border-border text-foreground hover:bg-muted"
-                          }`}
-                          style={
-                            sortBy === key
-                              ? { background: "hsl(var(--primary))" }
-                              : {}
-                          }
-                        >
-                          <Icon className="w-4 h-4 flex-shrink-0" />
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="border-t border-border" />
-
-                  {/* AI Button + "What can it do?" link */}
-                  <div className="space-y-2">
-                    <button
-                      onClick={handleOpenAI}
-                      className="w-full px-4 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 hover:opacity-90 active:scale-95"
-                      style={{
-                        background: "hsl(var(--primary))",
-                        color: "hsl(var(--primary-foreground))",
-                      }}
+                    <div
+                      className={`lg:hidden overflow-hidden transition-all duration-300 ease-in-out ${
+                        filtersOpen
+                          ? "max-h-[1000px] opacity-100 mt-4"
+                          : "max-h-0 opacity-0"
+                      }`}
                     >
-                      <BsStars className="text-sm flex-shrink-0" />
-                      Get AI Recommendations
-                    </button>
-                    <div className="text-center">
-                      <button
-                        onClick={() => setAiModalOpen(true)}
-                        className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
-                      >
-                        What can the AI do for me?
-                      </button>
+                      {filterPanelContent}
                     </div>
-                  </div>
 
-                  {/* Active Filters */}
-                  {hasActiveFilters && (
-                    <>
-                      <div className="border-t border-border" />
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">
-                            Active Filters
-                          </span>
-                          <button
-                            onClick={clearAllFilters}
-                            className="text-xs font-semibold underline text-primary hover:opacity-70 transition-opacity"
-                          >
-                            Clear all
-                          </button>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {searchTerm && (
-                            <span
-                              className="px-2.5 py-1 rounded-full text-xs flex items-center gap-1 font-medium"
-                              style={{
-                                background: "hsl(var(--primary) / 0.1)",
-                                color: "hsl(var(--primary))",
-                              }}
-                            >
-                              "
-                              {searchTerm.length > 10
-                                ? searchTerm.slice(0, 10) + "…"
-                                : searchTerm}
-                              "
-                              <button
-                                onClick={() => setSearchTerm("")}
-                                className="hover:opacity-70 transition-opacity"
-                              >
-                                <X className="w-2.5 h-2.5" />
-                              </button>
-                            </span>
-                          )}
-                          {priceRange !== "all" && (
-                            <span
-                              className="px-2.5 py-1 rounded-full text-xs flex items-center gap-1 font-medium"
-                              style={{
-                                background: "hsl(var(--accent) / 0.15)",
-                                color: "hsl(var(--primary))",
-                              }}
-                            >
-                              {priceRangeLabel(priceRange)}
-                              <button
-                                onClick={() => setPriceRange("all")}
-                                className="hover:opacity-70 transition-opacity"
-                              >
-                                <X className="w-2.5 h-2.5" />
-                              </button>
-                            </span>
-                          )}
-                          {sortBy !== "yield" && (
-                            <span
-                              className="px-2.5 py-1 rounded-full text-xs flex items-center gap-1 font-medium"
-                              style={{
-                                background: "hsl(var(--primary) / 0.1)",
-                                color: "hsl(var(--primary))",
-                              }}
-                            >
-                              {sortBy === "growth" ? "Growth" : "Low Risk"}
-                              <button
-                                onClick={() => setSortBy("yield")}
-                                className="hover:opacity-70 transition-opacity"
-                              >
-                                <X className="w-2.5 h-2.5" />
-                              </button>
-                            </span>
-                          )}
-                        </div>
+                    {/* ── Always-visible quick results count when filters are closed (small screens only) ── */}
+                    {!filtersOpen && (
+                      <div className="lg:hidden mt-3 flex items-center justify-between px-3 py-2 rounded-lg bg-muted">
+                        <span className="text-xs text-muted-foreground font-medium">
+                          Showing results
+                        </span>
+                        <span
+                          className="text-xs font-bold px-2.5 py-0.5 rounded-full text-primary-foreground"
+                          style={{ background: "hsl(var(--primary))" }}
+                        >
+                          {sortedAreas.length} areas
+                        </span>
                       </div>
-                    </>
-                  )}
-
-                  {/* Results count */}
-                  <div className="border-t border-border pt-3">
-                    <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted">
-                      <span className="text-xs text-muted-foreground font-medium">
-                        Showing results
-                      </span>
-                      <span
-                        className="text-xs font-bold px-2.5 py-0.5 rounded-full text-primary-foreground"
-                        style={{ background: "hsl(var(--primary))" }}
-                      >
-                        {loading ? "…" : `${sortedAreas.length} areas`}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </aside>
 
-            {/* ═══ CARDS GRID ════════════════════════════════════ */}
-            <div className="flex-1 min-w-0">
+            {/* ── CARDS GRID ── */}
+            <div className="flex-1 min-w-0 w-full">
               {/* Results header */}
               {!loading && (
-                <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center justify-between mb-4 sm:mb-5">
                   <p className="text-sm text-muted-foreground">
                     <span className="font-semibold text-foreground">
                       {sortedAreas.length}
@@ -593,13 +669,13 @@ const AreasPage = () => {
               )}
 
               {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 w-full">
+                  {Array.from({ length: 6 }).map((_, i) => (
                     <SkeletonCard key={i} />
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
                   {sortedAreas.map((area) => {
                     const riskInfo = getRiskLevel(area.risk);
                     const isGrowthPositive = parseFloat(area.growth) > 0;
@@ -611,7 +687,7 @@ const AreasPage = () => {
                         className="group overflow-hidden hover:shadow-xl transition-all duration-300 border border-border rounded-2xl bg-card"
                       >
                         {/* Image */}
-                        <div className="relative h-48 overflow-hidden">
+                        <div className="relative h-44 sm:h-48 overflow-hidden">
                           <img
                             src={area.image_url || getDefaultImage()}
                             alt={`${area.location_name} - ${area.area_name}`}
@@ -658,7 +734,6 @@ const AreasPage = () => {
                             <h3 className="text-base font-bold text-white leading-tight mb-2 truncate">
                               {area.area_name}
                             </h3>
-                            {/* Best Segment pill */}
                             <div
                               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full"
                               style={{
@@ -678,8 +753,7 @@ const AreasPage = () => {
                         </div>
 
                         {/* Card Body */}
-                        <CardContent className="p-4">
-                          {/* Price Row */}
+                        <CardContent className="p-3 sm:p-4">
                           <div className="grid grid-cols-2 gap-2 mb-2">
                             <div className="rounded-xl p-2.5 bg-muted">
                               <div className="flex items-center gap-1 mb-1">
@@ -714,7 +788,6 @@ const AreasPage = () => {
                             </div>
                           </div>
 
-                          {/* Yield & Growth */}
                           <div className="grid grid-cols-2 gap-2 mb-2">
                             <div className="rounded-xl p-2.5 bg-muted">
                               <div className="flex items-center gap-1 mb-1">
@@ -765,7 +838,6 @@ const AreasPage = () => {
                             </div>
                           </div>
 
-                          {/* Transactions + Supply */}
                           <div className="flex gap-2 mb-3">
                             <div className="flex items-center gap-1.5 flex-1 px-2.5 py-1.5 rounded-lg bg-muted">
                               <Activity className="w-3 h-3 text-muted-foreground flex-shrink-0" />
@@ -784,10 +856,7 @@ const AreasPage = () => {
                             </div>
                           </div>
 
-                          {/* CTA */}
-                          <Link
-                            href={`/locations/${areaSlug}-${area.area_id}`}
-                          >
+                          <Link href={`/locations/${areaSlug}-${area.area_id}`}>
                             <Button
                               className="w-full text-primary-foreground rounded-xl h-10 font-semibold border-0 hover:opacity-90 transition-opacity text-sm"
                               style={{ background: "hsl(var(--primary))" }}
@@ -805,7 +874,7 @@ const AreasPage = () => {
 
               {/* Empty State */}
               {!loading && sortedAreas.length === 0 && (
-                <div className="text-center py-24 flex flex-col items-center">
+                <div className="text-center py-16 sm:py-24 flex flex-col items-center">
                   <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5 bg-muted">
                     <MapPin className="w-9 h-9 text-muted-foreground" />
                   </div>
@@ -827,7 +896,8 @@ const AreasPage = () => {
           </div>
         </div>
       </section>
-      {/* ═══ AI CAPABILITIES MODAL ══════════════════════════ */}
+
+      {/* ── AI CAPABILITIES MODAL ── */}
       {aiModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -841,7 +911,6 @@ const AreasPage = () => {
             className="relative w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal header */}
             <div
               className="px-6 pt-6 pb-5 border-b border-border"
               style={{ background: "hsl(var(--primary))" }}
@@ -875,14 +944,12 @@ const AreasPage = () => {
               </div>
             </div>
 
-            {/* Modal body */}
             <div className="px-6 py-5 space-y-4">
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Our AI advisor analyzes real-time Dubai market data to give you
                 personalized, data-backed investment guidance — tailored to your
                 goals and risk profile.
               </p>
-
               <div className="space-y-2.5">
                 {[
                   {
@@ -937,7 +1004,6 @@ const AreasPage = () => {
               </div>
             </div>
 
-            {/* Modal footer */}
             <div className="px-6 pb-6 space-y-2.5">
               <button
                 onClick={handleOpenAI}

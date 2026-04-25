@@ -721,7 +721,7 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
         />
       )}
 
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50">
         <AnimatePresence>
           {isChatOpen && (
             <motion.div
@@ -730,24 +730,21 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
                 opacity: 1,
                 scale: 1,
                 y: 0,
-                width: isMaximized ? "97vw" : "32rem",
-                height: isMaximized ? "95vh" : "95vh",
-                right: 12,
               }}
               exit={{ opacity: 0, scale: 0.9, y: 30 }}
-              transition={{
-                duration: 0.3,
-                ease: "easeInOut",
-              }}
-              className={`bg-white shadow-2xl border border-gray-200 rounded-2xl overflow-hidden flex flex-col fixed bottom-6 z-50`}
-              style={{
-                originX: isMaximized ? 1 : 0,
-                originY: 1,
-              }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className={`
+                bg-white shadow-2xl border border-gray-200 rounded-2xl overflow-hidden flex flex-col fixed z-50
+                bottom-0 left-0 right-0 h-[92dvh] rounded-b-none
+                sm:bottom-6 sm:left-auto sm:right-3 sm:rounded-2xl
+                sm:w-[32rem] sm:h-[95vh]
+                ${isMaximized ? "sm:w-[97vw] sm:right-[1.5vw]" : ""}
+              `}
+              style={{ originX: 1, originY: 1 }}
             >
               {/* Header */}
               <div
-                className="h-12 px-4 flex items-center justify-between text-sm font-medium"
+                className="h-12 px-4 flex items-center justify-between text-sm font-medium flex-shrink-0"
                 style={{
                   background:
                     "linear-gradient(135deg, hsl(35 25% 88%), hsl(25 20% 92%))",
@@ -757,9 +754,10 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
                   AI Assistant {isAnonymous && "(Guest Mode)"}
                 </span>
                 <div className="flex items-center gap-2">
+                  {/* Hide maximize on mobile — already full screen */}
                   <button
                     onClick={() => setIsMaximized((prev) => !prev)}
-                    className="p-1 rounded hover:bg-gray-100 transition"
+                    className="hidden sm:flex p-1 rounded hover:bg-gray-100 transition"
                   >
                     {isMaximized ? (
                       <Minimize2 size={16} />
@@ -769,7 +767,7 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
                   </button>
                   <button
                     onClick={handleCloseChat}
-                    className="p-1 rounded hover:bg-gray-100 transition"
+                    className="p-1 rounded hover:bg-gray-100 transition text-lg leading-none"
                   >
                     &times;
                   </button>
@@ -778,21 +776,21 @@ const ChatMainHome = ({ communityName, communitySlug }: ChatMainHomeProps) => {
 
               {/* Context Banner */}
               {areaContext && (
-                <div className="bg-gradient-to-r from-[hsl(45,85%,55%)] to-[hsl(40,80%,60%)] px-4 py-3 flex items-center justify-between text-white text-sm">
-                  <div className="flex items-center gap-2">
+                <div className="bg-gradient-to-r from-[hsl(45,85%,55%)] to-[hsl(40,80%,60%)] px-4 py-3 flex items-center justify-between text-white text-sm flex-shrink-0">
+                  <div className="flex items-center gap-2 min-w-0">
                     <MapPin className="h-4 w-4 flex-shrink-0" />
-                    <div className="flex flex-col">
-                      <span className="font-semibold">
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-semibold truncate">
                         Analyzing {areaContext.areaName}
                       </span>
-                      <span className="text-xs text-white/90">
+                      <span className="text-xs text-white/90 truncate">
                         Using community-specific data to answer your questions
                       </span>
                     </div>
                   </div>
                   <button
                     onClick={handleClearContext}
-                    className="p-1 hover:bg-white/20 rounded transition flex-shrink-0"
+                    className="p-1 hover:bg-white/20 rounded transition flex-shrink-0 ml-2"
                     aria-label="Ask globally"
                     title="Ask globally"
                   >

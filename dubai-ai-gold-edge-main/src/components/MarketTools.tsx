@@ -16,36 +16,32 @@ export default function MarketTools({
   priceTrendData,
 }) {
   return (
-    <div className="min-h-screen bg-background pt-10">
-      {/* Wider container + less side padding on large screens */}
-      <div className="mx-auto max-w-[1600px] px-3 sm:px-4 md:px-6 lg:px-6 xl:px-4 2xl:px-2">
+    <div className="min-h-screen bg-background pt-8 sm:pt-10">
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
+
         {/* Header */}
-        <div className="mb-8 text-center">
-          <h2 className="mb-4 text-3xl font-bold text-foreground sm:text-4xl md:text-5xl">
+        <div className="mb-8 sm:mb-12 text-center px-2">
+          <h2 className="mb-3 sm:mb-4 text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground leading-tight">
             Everything You Need to
             <span className="text-accent"> Dominate </span>
             Dubai Real Estate
           </h2>
-
-          <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg md:text-xl">
+          <p className="mx-auto max-w-2xl text-sm sm:text-base md:text-lg text-muted-foreground">
             Our comprehensive platform combines cutting-edge AI technology with
             deep market expertise to give you the competitive edge in
             Dubai&apos;s property market.
           </p>
         </div>
 
-        {/* Grid */}
-        <div className="py-4 px-20 sm:py-6">
-          <div className="grid grid-cols-1 gap-5 lg:gap-6 xl:grid-cols-2">
-            {/* <ROIYieldAnalyzer /> */}
+        {/* Tool grid */}
+        <div className="pb-10 sm:pb-14">
+          <div className="grid grid-cols-1 gap-4 sm:gap-5 lg:gap-6 xl:grid-cols-2">
             <InvestmentScore
               areaComparisonData={areaComparisonData}
               topProjects={topProjects}
               supplyDemandData={supplyDemandData}
             />
-            {/* <PriceTrendTool /> */}
             <AreaComparison areaComparisonData={areaComparisonData} />
-            {/* <TopProjects /> */}
             <SupplyDemand supplyDemandData={supplyDemandData} />
             <SmartDealFinder
               areaComparisonData={areaComparisonData}
@@ -54,6 +50,7 @@ export default function MarketTools({
             />
           </div>
         </div>
+
       </div>
     </div>
   );

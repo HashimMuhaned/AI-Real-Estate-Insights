@@ -20,8 +20,6 @@ import { getUndervaluedCommunities } from "@/db/queries/opportunities/getUnderva
 import { getDevelopers } from "@/db/queries/developers/getDevelopers";
 
 export default async function Page() {
-  console.log("🔥 HOME PAGE FETCHING DATA");
-
   const [
     areaComparisonData,
     topProjects,
@@ -31,7 +29,7 @@ export default async function Page() {
     roiAreas,
     offPlanProjects,
     undervaluedCommunities,
-    developers
+    developers,
   ] = await Promise.all([
     getAreaComparisonData(),
     getTopProjects(),
@@ -41,12 +39,11 @@ export default async function Page() {
     getRoiAreas(),
     getOffPlanProjects(),
     getUndervaluedCommunities(5),
-    getDevelopers()
+    getDevelopers(),
   ]);
 
-  console.log("area comparison", areaComparisonData);
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen w-full overflow-x-hidden">
       <Hero />
       <Features />
 
@@ -63,7 +60,7 @@ export default async function Page() {
         offPlanProjects={offPlanProjects}
         undervaluedCommunities={undervaluedCommunities}
       />
-      <Developers developers={developers}/>
+      <Developers developers={developers} />
       <MarketReports />
       <HowItWorks />
       <Pricing />
