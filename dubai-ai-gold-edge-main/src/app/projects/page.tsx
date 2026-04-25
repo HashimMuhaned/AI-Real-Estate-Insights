@@ -62,9 +62,7 @@ export default function ProjectsPage() {
   useEffect(() => {
     if (!loaderRef.current) return;
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) loadMore();
-      },
+      ([entry]) => { if (entry.isIntersecting) loadMore(); },
       { rootMargin: "200px" },
     );
     observer.observe(loaderRef.current);
@@ -83,9 +81,7 @@ export default function ProjectsPage() {
 
   const skeletonCount =
     loading || isRefreshing || isFetchingMore
-      ? projects.length === 0
-        ? 12
-        : 6
+      ? projects.length === 0 ? 12 : 6
       : 0;
 
   const sharedSidebarProps = {
@@ -118,13 +114,15 @@ export default function ProjectsPage() {
       {/* MAIN CONTENT */}
       <section className="container mx-auto px-2 py-12">
         <div className="flex flex-col lg:flex-row gap-8">
+
           {/* ── SIDEBAR ── */}
           <aside
-            className="w-full lg:w-72 flex-shrink-0 lg:sticky lg:top-6 mx-auto lg:mx-0 max-w-sm sm:max-w-none"
+            className="w-full lg:w-72 flex-shrink-0 lg:sticky lg:top-24 mx-auto lg:mx-0 max-w-sm sm:max-w-none"
             style={{ alignSelf: "flex-start" }}
           >
             <Card className="rounded-2xl overflow-visible shadow-md border border-border bg-card">
               <CardContent className="p-4 space-y-0">
+
                 {/* Toggle button — mobile only */}
                 <button
                   onClick={() => setFiltersOpen((v) => !v)}
@@ -205,13 +203,9 @@ export default function ProjectsPage() {
             <div className="mb-6">
               <p className="text-sm text-muted-foreground">
                 Showing{" "}
-                <span className="font-bold text-foreground">
-                  {projects.length}
-                </span>{" "}
+                <span className="font-bold text-foreground">{projects.length}</span>{" "}
                 projects
-                {hasMore && (
-                  <span className="text-xs ml-1">(scroll for more)</span>
-                )}
+                {hasMore && <span className="text-xs ml-1">(scroll for more)</span>}
               </p>
             </div>
 
@@ -266,9 +260,7 @@ export default function ProjectsPage() {
                           AED {formatPrice(p.startingPrice)}
                         </span>
                       </p>
-                      <p className="text-sm">
-                        Down payment: {p.downPayment ?? "-"}%
-                      </p>
+                      <p className="text-sm">Down payment: {p.downPayment ?? "-"}%</p>
                       <p className="text-sm">
                         Delivery:{" "}
                         {p.deliveryDate
@@ -278,10 +270,7 @@ export default function ProjectsPage() {
                       <p className="text-sm">Stock: {p.stock ?? "N/A"}</p>
                       <div className="flex flex-wrap gap-2 pt-2">
                         {p.amenities.slice(0, 5).map((a) => (
-                          <span
-                            key={a}
-                            className="text-xs bg-muted px-2 py-1 rounded"
-                          >
+                          <span key={a} className="text-xs bg-muted px-2 py-1 rounded">
                             {a}
                           </span>
                         ))}
@@ -304,22 +293,19 @@ export default function ProjectsPage() {
               ))}
             </div>
 
-            {!loading &&
-              !isRefreshing &&
-              projects.length === 0 &&
-              hasActiveFilters && (
-                <div className="text-center py-12 bg-card rounded-xl border mt-6">
-                  <p className="text-muted-foreground text-lg mb-4">
-                    No projects found matching your criteria.
-                  </p>
-                  <button
-                    onClick={clearAllFilters}
-                    className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-all"
-                  >
-                    Clear all filters
-                  </button>
-                </div>
-              )}
+            {!loading && !isRefreshing && projects.length === 0 && hasActiveFilters && (
+              <div className="text-center py-12 bg-card rounded-xl border mt-6">
+                <p className="text-muted-foreground text-lg mb-4">
+                  No projects found matching your criteria.
+                </p>
+                <button
+                  onClick={clearAllFilters}
+                  className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-all"
+                >
+                  Clear all filters
+                </button>
+              </div>
+            )}
 
             {hasMore && <div ref={loaderRef} className="h-10 mt-2" />}
 
@@ -390,10 +376,7 @@ export default function ProjectsPage() {
 
             <div className="p-6 border-t bg-muted/30">
               <button
-                onClick={() => {
-                  console.log("AI Query:", aiQuery);
-                  setShowAIModal(false);
-                }}
+                onClick={() => { console.log("AI Query:", aiQuery); setShowAIModal(false); }}
                 disabled={!aiQuery.trim()}
                 className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
               >
@@ -412,10 +395,7 @@ export default function ProjectsPage() {
 
 type SidebarProps = {
   uiFilters: FilterState;
-  setFilter: <K extends keyof FilterState>(
-    key: K,
-    value: FilterState[K],
-  ) => void;
+  setFilter: <K extends keyof FilterState>(key: K, value: FilterState[K]) => void;
   /** Full unfiltered list — search filtering happens internally */
   developers: Developer[];
   hasActiveFilters: boolean;
@@ -446,10 +426,7 @@ function FilterSidebarContent({
 
   useEffect(() => {
     function handleOutsideClick(e: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setShowDeveloperDropdown(false);
       }
     }
@@ -461,25 +438,22 @@ function FilterSidebarContent({
     d.name.toLowerCase().includes(developerSearch.toLowerCase()),
   );
   const selectedDeveloperName =
-    developers.find((d) => d.id.toString() === uiFilters.selectedDeveloper)
-      ?.name ?? "All Developers";
+    developers.find((d) => d.id.toString() === uiFilters.selectedDeveloper)?.name ??
+    "All Developers";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+
       {/* Search */}
-      <div className="space-y-1.5">
-        <label className="font-semibold text-sm flex items-center gap-2 text-foreground">
-          <Search className="w-4 h-4 text-muted-foreground" />
-          Search
-        </label>
+      <div className="space-y-1">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           <input
             type="text"
             placeholder="Project name…"
             value={uiFilters.query}
             onChange={(e) => setFilter("query", e.target.value)}
-            className="w-full pl-10 pr-8 py-2.5 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-background text-sm text-foreground placeholder:text-muted-foreground"
+            className="w-full pl-9 pr-8 py-2 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-background text-sm text-foreground placeholder:text-muted-foreground"
           />
           {uiFilters.query && (
             <button
@@ -492,36 +466,29 @@ function FilterSidebarContent({
         </div>
       </div>
 
-      <div className="border-t border-border" />
-
       {/* AI Button */}
-      <div className="space-y-2">
-        <button
-          onClick={() => setShowAIModal(true)}
-          className="w-full px-4 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 hover:opacity-90 active:scale-95"
-          style={{
-            background: "hsl(var(--primary))",
-            color: "hsl(var(--primary-foreground))",
-          }}
-        >
-          <Sparkles className="w-4 h-4 flex-shrink-0" />
-          Ask AI Assistant
-        </button>
-      </div>
+      <button
+        onClick={() => setShowAIModal(true)}
+        className="w-full px-4 py-2 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 hover:opacity-90 active:scale-95"
+        style={{ background: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))" }}
+      >
+        <Sparkles className="w-4 h-4 flex-shrink-0" />
+        Ask AI Assistant
+      </button>
 
       <div className="border-t border-border" />
 
       {/* Hotness Level */}
-      <div className="space-y-1.5">
-        <label className="font-semibold text-sm flex items-center gap-2 text-foreground">
-          <Flame className="w-4 h-4 text-orange-500" />
-          Hotness Level
+      <div className="space-y-1">
+        <label className="font-semibold text-xs flex items-center gap-1.5 text-muted-foreground uppercase tracking-wide">
+          <Flame className="w-3.5 h-3.5 text-orange-500" />
+          Hotness
         </label>
         <div className="relative">
           <select
             value={uiFilters.hotnessLevel}
             onChange={(e) => setFilter("hotnessLevel", e.target.value)}
-            className="w-full appearance-none px-3 py-2.5 pr-10 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background cursor-pointer transition-all text-sm font-medium text-foreground"
+            className="w-full appearance-none px-3 py-2 pr-9 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background cursor-pointer transition-all text-sm font-medium text-foreground"
           >
             <option value="all">All Projects</option>
             <option value="80">🔥 Very Hot (80+)</option>
@@ -529,72 +496,53 @@ function FilterSidebarContent({
             <option value="40">🔥 Warm (40+)</option>
             <option value="1">🔥 Any Level</option>
           </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
         </div>
       </div>
 
-      {/* Developer — dropdownRef covers trigger button + panel */}
-      <div className="space-y-1.5">
-        <label className="font-semibold text-sm flex items-center gap-2 text-foreground">
-          <div
-            className="w-1 h-4 rounded-full"
-            style={{ background: "hsl(var(--accent))" }}
-          />
+      {/* Developer */}
+      <div className="space-y-1">
+        <label className="font-semibold text-xs flex items-center gap-1.5 text-muted-foreground uppercase tracking-wide">
+          <div className="w-1 h-3.5 rounded-full" style={{ background: "hsl(var(--accent))" }} />
           Developer
         </label>
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowDeveloperDropdown((v) => !v)}
-            className="w-full appearance-none px-3 py-2.5 pr-10 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background cursor-pointer transition-all text-sm text-left font-medium text-foreground"
+            className="w-full appearance-none px-3 py-2 pr-9 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background cursor-pointer transition-all text-sm text-left font-medium text-foreground"
           >
             {selectedDeveloperName}
           </button>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
 
           {showDeveloperDropdown && (
-            <div className="absolute z-10 w-full mt-1 bg-card border-2 border-primary rounded-lg shadow-lg max-h-64 overflow-hidden flex flex-col">
+            <div className="absolute z-10 w-full mt-1 bg-card border-2 border-primary rounded-lg shadow-lg max-h-56 overflow-hidden flex flex-col">
               <div className="p-2 border-b">
                 <input
                   type="text"
                   placeholder="Search developers…"
                   value={developerSearch}
                   onChange={(e) => setDeveloperSearch(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  className="w-full px-3 py-1.5 rounded-md border focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                 />
               </div>
               <div className="overflow-y-auto">
                 <button
-                  onClick={() => {
-                    setFilter("selectedDeveloper", "all");
-                    setShowDeveloperDropdown(false);
-                    setDeveloperSearch("");
-                  }}
+                  onClick={() => { setFilter("selectedDeveloper", "all"); setShowDeveloperDropdown(false); setDeveloperSearch(""); }}
                   className="w-full text-left px-3 py-2 hover:bg-primary/10 transition-colors text-sm"
                 >
                   All Developers
                 </button>
                 {filteredDevelopers.length === 0 ? (
-                  <div className="px-3 py-2 text-sm text-muted-foreground">
-                    No developers found
-                  </div>
+                  <div className="px-3 py-2 text-sm text-muted-foreground">No developers found</div>
                 ) : (
                   filteredDevelopers.map((dev) => (
                     <button
                       key={dev.id}
-                      onClick={() => {
-                        setFilter("selectedDeveloper", dev.id.toString());
-                        setShowDeveloperDropdown(false);
-                        setDeveloperSearch("");
-                      }}
+                      onClick={() => { setFilter("selectedDeveloper", dev.id.toString()); setShowDeveloperDropdown(false); setDeveloperSearch(""); }}
                       className="w-full text-left px-3 py-2 hover:bg-primary/10 transition-colors text-sm flex items-center gap-2"
                     >
-                      {dev.logo && (
-                        <img
-                          src={dev.logo}
-                          alt={dev.name}
-                          className="w-5 h-5 object-contain"
-                        />
-                      )}
+                      {dev.logo && <img src={dev.logo} alt={dev.name} className="w-5 h-5 object-contain" />}
                       {dev.name}
                     </button>
                   ))
@@ -606,19 +554,16 @@ function FilterSidebarContent({
       </div>
 
       {/* Price Range */}
-      <div className="space-y-1.5">
-        <label className="font-semibold text-sm flex items-center gap-2 text-foreground">
-          <div
-            className="w-1 h-4 rounded-full"
-            style={{ background: "hsl(var(--accent))" }}
-          />
+      <div className="space-y-1">
+        <label className="font-semibold text-xs flex items-center gap-1.5 text-muted-foreground uppercase tracking-wide">
+          <div className="w-1 h-3.5 rounded-full" style={{ background: "hsl(var(--accent))" }} />
           Price Range
         </label>
         <div className="relative">
           <select
             value={uiFilters.priceRange}
             onChange={(e) => setFilter("priceRange", e.target.value)}
-            className="w-full appearance-none px-3 py-2.5 pr-10 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background cursor-pointer transition-all text-sm font-medium text-foreground"
+            className="w-full appearance-none px-3 py-2 pr-9 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background cursor-pointer transition-all text-sm font-medium text-foreground"
           >
             <option value="all">All Prices</option>
             <option value="under1m">Under AED 1M</option>
@@ -626,21 +571,21 @@ function FilterSidebarContent({
             <option value="2m-3m">AED 2M – 3M</option>
             <option value="over3m">Over AED 3M</option>
           </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
         </div>
       </div>
 
       {/* Property Type */}
-      <div className="space-y-1.5">
-        <label className="font-semibold text-sm flex items-center gap-2 text-foreground">
-          <div className="w-1 h-4 bg-primary rounded-full" />
+      <div className="space-y-1">
+        <label className="font-semibold text-xs flex items-center gap-1.5 text-muted-foreground uppercase tracking-wide">
+          <div className="w-1 h-3.5 bg-primary rounded-full" />
           Property Type
         </label>
         <div className="relative">
           <select
             value={uiFilters.propertyType}
             onChange={(e) => setFilter("propertyType", e.target.value)}
-            className="w-full appearance-none px-3 py-2.5 pr-10 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background cursor-pointer transition-all text-sm font-medium text-foreground"
+            className="w-full appearance-none px-3 py-2 pr-9 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background cursor-pointer transition-all text-sm font-medium text-foreground"
           >
             <option value="all">All Types</option>
             <option value="apartment">Apartments</option>
@@ -648,221 +593,126 @@ function FilterSidebarContent({
             <option value="penthouse">Penthouses</option>
             <option value="townhouse">Townhouses</option>
           </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
         </div>
       </div>
 
       {/* Delivery */}
-      <div className="space-y-1.5">
-        <label className="font-semibold text-sm flex items-center gap-2 text-foreground">
-          <div
-            className="w-1 h-4 rounded-full"
-            style={{ background: "hsl(var(--accent))" }}
-          />
+      <div className="space-y-1">
+        <label className="font-semibold text-xs flex items-center gap-1.5 text-muted-foreground uppercase tracking-wide">
+          <div className="w-1 h-3.5 rounded-full" style={{ background: "hsl(var(--accent))" }} />
           Delivery
         </label>
         <div className="relative">
           <select
             value={uiFilters.deliveryStatus}
             onChange={(e) => setFilter("deliveryStatus", e.target.value)}
-            className="w-full appearance-none px-3 py-2.5 pr-10 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background cursor-pointer transition-all text-sm font-medium text-foreground"
+            className="w-full appearance-none px-3 py-2 pr-9 rounded-lg border-2 border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-background cursor-pointer transition-all text-sm font-medium text-foreground"
           >
             <option value="all">All Projects</option>
             <option value="ready">Ready to Move</option>
             <option value="upcoming">Upcoming</option>
           </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
         </div>
       </div>
 
-      {/* Sort By */}
-      <div className="space-y-1.5">
-        <label className="font-semibold text-sm flex items-center gap-2 text-foreground">
-          <div className="w-1 h-4 bg-primary rounded-full" />
+      {/* Sort By — 3-column icon grid */}
+      <div className="space-y-1">
+        <label className="font-semibold text-xs flex items-center gap-1.5 text-muted-foreground uppercase tracking-wide">
+          <div className="w-1 h-3.5 bg-primary rounded-full" />
           Sort By
         </label>
-        <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-3 gap-1.5">
           {(
             [
-              { value: "recent", label: "Most Recent", icon: Activity },
-              {
-                value: "price_asc",
-                label: "Price: Low → High",
-                icon: TrendingUp,
-              },
-              { value: "price_desc", label: "Price: High → Low", icon: Shield },
+              { value: "recent",     label: "Recent",    icon: Activity   },
+              { value: "price_asc",  label: "Low–High",  icon: TrendingUp },
+              { value: "price_desc", label: "High–Low",  icon: Shield     },
             ] as const
           ).map(({ value, label, icon: Icon }) => (
             <button
               key={value}
               onClick={() => setFilter("sortBy", value)}
-              className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg border-2 transition-all text-sm font-medium text-left ${
+              title={value === "recent" ? "Most Recent" : value === "price_asc" ? "Price: Low → High" : "Price: High → Low"}
+              className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg border-2 transition-all text-xs font-medium ${
                 uiFilters.sortBy === value
                   ? "border-primary text-primary-foreground"
                   : "bg-background border-border text-foreground hover:bg-muted"
               }`}
-              style={
-                uiFilters.sortBy === value
-                  ? { background: "hsl(var(--primary))" }
-                  : {}
-              }
+              style={uiFilters.sortBy === value ? { background: "hsl(var(--primary))" } : {}}
             >
-              <Icon className="w-4 h-4 flex-shrink-0" />
+              <Icon className="w-3.5 h-3.5 flex-shrink-0" />
               {label}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="border-t border-border" />
-
       {/* Active Filters */}
       {hasActiveFilters && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">
-              Active Filters
-            </span>
-            <button
-              onClick={clearAllFilters}
-              className="text-xs font-semibold underline text-primary hover:opacity-70 transition-opacity"
-            >
-              Clear all
-            </button>
+        <>
+          <div className="border-t border-border" />
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">
+                Active Filters
+              </span>
+              <button
+                onClick={clearAllFilters}
+                className="text-xs font-semibold underline text-primary hover:opacity-70 transition-opacity"
+              >
+                Clear all
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {uiFilters.query && (
+                <span className="px-2 py-0.5 rounded-full text-xs flex items-center gap-1 font-medium"
+                  style={{ background: "hsl(var(--primary) / 0.1)", color: "hsl(var(--primary))" }}>
+                  "{uiFilters.query.length > 12 ? uiFilters.query.slice(0, 12) + "…" : uiFilters.query}"
+                  <button onClick={() => setFilter("query", "")} className="hover:opacity-70"><X className="w-2.5 h-2.5" /></button>
+                </span>
+              )}
+              {uiFilters.priceRange !== "all" && (
+                <span className="px-2 py-0.5 rounded-full text-xs flex items-center gap-1 font-medium"
+                  style={{ background: "hsl(var(--accent) / 0.15)", color: "hsl(var(--primary))" }}>
+                  {uiFilters.priceRange === "under1m" ? "<1M" : uiFilters.priceRange === "1m-2m" ? "1–2M" : uiFilters.priceRange === "2m-3m" ? "2–3M" : ">3M"}
+                  <button onClick={() => setFilter("priceRange", "all")} className="hover:opacity-70"><X className="w-2.5 h-2.5" /></button>
+                </span>
+              )}
+              {uiFilters.propertyType !== "all" && (
+                <span className="px-2 py-0.5 rounded-full text-xs flex items-center gap-1 font-medium capitalize"
+                  style={{ background: "hsl(var(--primary) / 0.1)", color: "hsl(var(--primary))" }}>
+                  {uiFilters.propertyType}
+                  <button onClick={() => setFilter("propertyType", "all")} className="hover:opacity-70"><X className="w-2.5 h-2.5" /></button>
+                </span>
+              )}
+              {uiFilters.deliveryStatus !== "all" && (
+                <span className="px-2 py-0.5 rounded-full text-xs flex items-center gap-1 font-medium capitalize"
+                  style={{ background: "hsl(var(--primary) / 0.1)", color: "hsl(var(--primary))" }}>
+                  {uiFilters.deliveryStatus}
+                  <button onClick={() => setFilter("deliveryStatus", "all")} className="hover:opacity-70"><X className="w-2.5 h-2.5" /></button>
+                </span>
+              )}
+              {uiFilters.selectedDeveloper !== "all" && (
+                <span className="px-2 py-0.5 rounded-full text-xs flex items-center gap-1 font-medium"
+                  style={{ background: "hsl(var(--accent) / 0.15)", color: "hsl(var(--primary))" }}>
+                  {selectedDeveloperName.length > 12 ? selectedDeveloperName.slice(0, 12) + "…" : selectedDeveloperName}
+                  <button onClick={() => setFilter("selectedDeveloper", "all")} className="hover:opacity-70"><X className="w-2.5 h-2.5" /></button>
+                </span>
+              )}
+              {uiFilters.hotnessLevel !== "all" && (
+                <span className="px-2 py-0.5 rounded-full text-xs flex items-center gap-1 font-medium"
+                  style={{ background: "hsl(var(--primary) / 0.1)", color: "hsl(var(--primary))" }}>
+                  🔥 {uiFilters.hotnessLevel}+
+                  <button onClick={() => setFilter("hotnessLevel", "all")} className="hover:opacity-70"><X className="w-2.5 h-2.5" /></button>
+                </span>
+              )}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {uiFilters.query && (
-              <span
-                className="px-2.5 py-1 rounded-full text-xs flex items-center gap-1 font-medium"
-                style={{
-                  background: "hsl(var(--primary) / 0.1)",
-                  color: "hsl(var(--primary))",
-                }}
-              >
-                "
-                {uiFilters.query.length > 15
-                  ? uiFilters.query.slice(0, 15) + "…"
-                  : uiFilters.query}
-                "
-                <button
-                  onClick={() => setFilter("query", "")}
-                  className="hover:opacity-70"
-                >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </span>
-            )}
-            {uiFilters.priceRange !== "all" && (
-              <span
-                className="px-2.5 py-1 rounded-full text-xs flex items-center gap-1 font-medium"
-                style={{
-                  background: "hsl(var(--accent) / 0.15)",
-                  color: "hsl(var(--primary))",
-                }}
-              >
-                {uiFilters.priceRange === "under1m"
-                  ? "<1M"
-                  : uiFilters.priceRange === "1m-2m"
-                    ? "1M–2M"
-                    : uiFilters.priceRange === "2m-3m"
-                      ? "2M–3M"
-                      : ">3M"}
-                <button
-                  onClick={() => setFilter("priceRange", "all")}
-                  className="hover:opacity-70"
-                >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </span>
-            )}
-            {uiFilters.propertyType !== "all" && (
-              <span
-                className="px-2.5 py-1 rounded-full text-xs flex items-center gap-1 font-medium capitalize"
-                style={{
-                  background: "hsl(var(--primary) / 0.1)",
-                  color: "hsl(var(--primary))",
-                }}
-              >
-                {uiFilters.propertyType}
-                <button
-                  onClick={() => setFilter("propertyType", "all")}
-                  className="hover:opacity-70"
-                >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </span>
-            )}
-            {uiFilters.deliveryStatus !== "all" && (
-              <span
-                className="px-2.5 py-1 rounded-full text-xs flex items-center gap-1 font-medium capitalize"
-                style={{
-                  background: "hsl(var(--primary) / 0.1)",
-                  color: "hsl(var(--primary))",
-                }}
-              >
-                {uiFilters.deliveryStatus}
-                <button
-                  onClick={() => setFilter("deliveryStatus", "all")}
-                  className="hover:opacity-70"
-                >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </span>
-            )}
-            {uiFilters.selectedDeveloper !== "all" && (
-              <span
-                className="px-2.5 py-1 rounded-full text-xs flex items-center gap-1 font-medium"
-                style={{
-                  background: "hsl(var(--accent) / 0.15)",
-                  color: "hsl(var(--primary))",
-                }}
-              >
-                {selectedDeveloperName.length > 15
-                  ? selectedDeveloperName.slice(0, 15) + "…"
-                  : selectedDeveloperName}
-                <button
-                  onClick={() => setFilter("selectedDeveloper", "all")}
-                  className="hover:opacity-70"
-                >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </span>
-            )}
-            {uiFilters.hotnessLevel !== "all" && (
-              <span
-                className="px-2.5 py-1 rounded-full text-xs flex items-center gap-1 font-medium"
-                style={{
-                  background: "hsl(var(--primary) / 0.1)",
-                  color: "hsl(var(--primary))",
-                }}
-              >
-                🔥 {uiFilters.hotnessLevel}+
-                <button
-                  onClick={() => setFilter("hotnessLevel", "all")}
-                  className="hover:opacity-70"
-                >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </span>
-            )}
-          </div>
-        </div>
+        </>
       )}
 
-      {/* Results count */}
-      <div className="border-t border-border pt-3">
-        <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted">
-          <span className="text-xs text-muted-foreground font-medium">
-            Showing results
-          </span>
-          <span
-            className="text-xs font-bold px-2.5 py-0.5 rounded-full text-primary-foreground"
-            style={{ background: "hsl(var(--primary))" }}
-          >
-            — projects
-          </span>
-        </div>
-      </div>
     </div>
   );
 }
