@@ -79,7 +79,7 @@ const RentalYieldChart = ({ selectedArea }: Props) => {
   const [dateRange, setDateRange] = useState("1y");
   const [viewType, setViewType] = useState("monthly");
   const [showDubaiAverage, setShowDubaiAverage] = useState(true);
-  const [chartDataSummary, setChartDataSummary] = useState([])
+  const [chartDataSummary, setChartDataSummary] = useState([]);
   const { openModal } = useModal();
 
   const apartmentColors = {
@@ -114,13 +114,12 @@ const RentalYieldChart = ({ selectedArea }: Props) => {
               detail_level: "short",
             },
             signal: controller.signal,
-          }
+          },
         );
-        console.log(response)
+        console.log(response);
         const chartData = response?.data?.chartData || [];
         const insight = response?.data?.aiInsight || "";
-        const dataSummary = response?.data?.summary.groups || []
-
+        const dataSummary = response?.data?.summary.groups || [];
 
         const normalized = chartData.map((item: any) => ({
           month_label: item.month_label,
@@ -133,8 +132,8 @@ const RentalYieldChart = ({ selectedArea }: Props) => {
 
         setData(normalized);
         setAiInsight(insight);
-        setChartDataSummary(dataSummary)
-        console.log(dataSummary)
+        setChartDataSummary(dataSummary);
+        console.log(dataSummary);
       } catch (err) {
         if (axios.isCancel(err)) return;
         console.error(err);
@@ -179,7 +178,7 @@ const RentalYieldChart = ({ selectedArea }: Props) => {
         const month = monthData.shortMonth;
         const year = monthData.year;
         const quarter = Math.ceil(
-          (new Date(Date.parse(`${month} 1, ${year}`)).getMonth() + 1) / 3
+          (new Date(Date.parse(`${month} 1, ${year}`)).getMonth() + 1) / 3,
         );
         const quarterKey = `Q${quarter} ${year}`;
 
@@ -318,7 +317,7 @@ const RentalYieldChart = ({ selectedArea }: Props) => {
     if (!chartData.length) return { bars: [], lines: [] };
 
     const keys = Object.keys(chartData[0]).filter(
-      (k) => k !== "month" && k !== "shortMonth"
+      (k) => k !== "month" && k !== "shortMonth",
     );
     return {
       bars: keys.filter((k) => k.includes("Apt")),
@@ -486,7 +485,7 @@ const RentalYieldChart = ({ selectedArea }: Props) => {
                       openModal({
                         chartType: "Rental Yield Chart",
                         areaName: selectedArea,
-                        summary: chartDataSummary
+                        summary: chartDataSummary,
                       })
                     }
                     className="h-auto p-0 text-xs text-primary hover:text-primary/80 mt-6"

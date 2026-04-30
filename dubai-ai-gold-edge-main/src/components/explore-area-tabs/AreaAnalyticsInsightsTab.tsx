@@ -11,6 +11,11 @@ import { useParams } from "next/navigation";
 import RentalYeildInArea from "@/components/charts/RentalYeildInArea";
 import RentalYieldANDPriceToRentRatio from "@/components/charts/(general)/RentalYieldANDPriceToRentRatio";
 import VillaApartmentPricePerRoom from "@/components/charts/(general)/ApartmentVillaPricePerBedRoomNumber";
+import PriceTrendChart from "../charts/(areaCharts)/PriceTrendChart";
+import RentPriceTrend from "../charts/(areaCharts)/RentTrendChart";
+import YieldChart from "../charts/(areaCharts)/YieldHorizontalRank";
+import VolumeChart from "../charts/(areaCharts)/TransactionVolumn";
+import GrowthComparisonChart from "../charts/(areaCharts)/GrowthComparisonChart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Props = {
@@ -18,8 +23,8 @@ type Props = {
 };
 
 export default function AreaAnalyticsInsightsTab({ name }: { name: string }) {
-//   const { areaName } = useParams<{ areaName: string }>();
-//   const name = areaName ? areaName.replace(/-/g, " ") : "";
+  //   const { areaName } = useParams<{ areaName: string }>();
+  //   const name = areaName ? areaName.replace(/-/g, " ") : "";
 
   return (
     <div>
@@ -59,17 +64,22 @@ export default function AreaAnalyticsInsightsTab({ name }: { name: string }) {
 
           <TabsContent value="general">
             <AreaOverView area={name} />
-            <VillaAppartementPriceTrend selectedArea={name} />
+            <PriceTrendChart />
+            <RentPriceTrend />
+            <YieldChart />
+            <VolumeChart />
+            <GrowthComparisonChart />
+            {/* <VillaAppartementPriceTrend selectedArea={name} />
             <VillaApartmentPricePerRoom areaName={name} />
             <TopProjectsInArea />
-            <RentalYieldANDPriceToRentRatio selectedArea={name} />
+            <RentalYieldANDPriceToRentRatio selectedArea={name} /> */}
           </TabsContent>
 
           <TabsContent value="rental">
             <RentalYeildInArea areaName={name} />
           </TabsContent>
         </Tabs>
-      </div>
+      </div> 
     </div>
   );
 }
