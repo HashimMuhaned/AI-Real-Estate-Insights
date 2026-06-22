@@ -138,7 +138,7 @@ const AreasPage = () => {
     setSortBy("yield");
   };
 
-  const filteredAreas = areas.filter((area) => {
+  const filteredAreas = areas?.filter((area) => {
     const s = searchTerm.toLowerCase();
     const matchesSearch =
       area.area_id.toString().includes(s) ||
@@ -537,7 +537,6 @@ const AreasPage = () => {
       <section className="py-6 sm:py-10">
         <div className="w-full max-w-[1400px] mx-auto px-4">
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-stretch lg:items-start">
-
             {/* ── SIDEBAR ── */}
             <aside
               className="w-full lg:w-72 flex-shrink-0 lg:sticky lg:top-6 mx-auto lg:mx-0 max-w-sm sm:max-w-none"
@@ -548,7 +547,6 @@ const AreasPage = () => {
               ) : (
                 <Card className="rounded-2xl overflow-visible shadow-md border border-border bg-card">
                   <CardContent className="p-4 space-y-0">
-
                     {/* ── Toggle button: only shown on small screens ── */}
                     <button
                       onClick={() => setFiltersOpen((v) => !v)}

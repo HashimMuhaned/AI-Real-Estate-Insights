@@ -13,10 +13,10 @@ export default function AuthButtons() {
     try {
       // Use callbackUrl: false to prevent redirect
       // The session will update automatically via useSession
-      await signIn("google", { 
-        redirect: false,  // 👈 CRITICAL: Prevents page refresh
+      await signIn("google", {
+        redirect: false, // 👈 CRITICAL: Prevents page refresh
       });
-      
+
       // Session will automatically update via useSession hook
       console.log("✅ Sign in completed without redirect");
     } catch (error) {
@@ -43,10 +43,7 @@ export default function AuthButtons() {
   }
 
   return (
-    <Button 
-      onClick={handleSignIn}
-      disabled={isSigningIn}
-    >
+    <Button onClick={handleSignIn} disabled={isSigningIn}>
       {isSigningIn ? "Signing in..." : "Sign In with Google"}
     </Button>
   );

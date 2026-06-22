@@ -1,10 +1,41 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
-const sql = postgres(process.env.NEXT_PUBLIC_DRIZZLE_DB_URL);
-// const sql_demo_projects = postgres(
-//   process.env.NEXT_PUBLIC_DRIZZLE_DB_DEMO_PROJECTS_URL,
-// );
+import { drizzle as drizzleNeon } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
 
-export const db = drizzle(sql);
-// export const db_demo_projects = drizzle(sql_demo_projects);
+const mode = process.env.DB_MODE ?? "local";
+
+let db: any;
+
+// ==========================
+// 🧑‍💻 LOCAL DB (fast dev)
+// ==========================
+if (mode === "local") {
+  const sql = postgres(process.env.DB_URL_LOCAL!, {
+    max: 10,
+  });
+
+  db = drizzle(sql);
+}
+
+// ==========================
+// 🌍 NEON DB (bypass uni + production)
+// ==========================
+else {
+  const sql = neon(process.env.DB_URL!);
+
+  const baseDb = drizzleNeon(sql);
+
+  // ✅ SAFE execute wrapper (NO recursion)
+  const originalExecute = baseDb.execute.bind(baseDb);
+
+  db = Object.assign(baseDb, {
+    async execute<T = any>(query: any): Promise<T[]> {
+      const result = await originalExecute(query);
+      return result.rows as T[];
+    },
+  });
+}
+
+export { db };

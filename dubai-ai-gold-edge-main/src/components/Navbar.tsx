@@ -7,6 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import Dubai_AI_Invest_logo_design_simple_dark from "public/Dubai_AI_Invest_logo_design_simple_dark.png";
 import Dubai_AI_Invest_logo_design_simple from "public/Dubai_AI_Invest_logo_design_simple.png";
+import { useSession, signOut } from "next-auth/react";
 
 // ─── Route Config ─────────────────────────────────────────────
 const routeConfig: Record<
@@ -99,6 +100,9 @@ const Navbar = () => {
   const [activeLink, setActiveLink] = useState<string | null>(null);
   const pathname = usePathname();
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const { data: session, status } = useSession();
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const currentConfig = routeConfig[pathname] ??
     routeConfig[
@@ -126,6 +130,21 @@ const Navbar = () => {
       document.body.style.overflow = "";
     };
   }, [isMobileMenuOpen]);
+
+  // close drop when the user cicks outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(e.target as Node)
+      ) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <>
@@ -206,7 +225,43 @@ const Navbar = () => {
                 `}
               />
 
-              <AuthCTA isWhiteText={isWhiteText} />
+              {status !== "loading" &&
+                (session ? (
+                  <div className="relative" ref={userMenuRef}>
+                    <button
+                      onClick={() => setIsUserMenuOpen((prev) => !prev)}
+                      className="flex items-center gap-2"
+                    >
+                      <img
+                        src={session.user?.image ?? "/default-avatar.png"}
+                        alt="User"
+                        className="w-9 h-9 rounded-full border"
+                      />
+                    </button>
+
+                    {/* Dropdown */}
+                    <div
+                      className={`
+          absolute right-0 mt-3 w-48 bg-white rounded-xl shadow-lg border
+          transition-all duration-200
+          ${isUserMenuOpen ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}
+        `}
+                    >
+                      <div className="p-2">
+                        <button className="dropdown-item">My Profile</button>
+                        <button className="dropdown-item">Settings</button>
+                        <button
+                          onClick={() => signOut()}
+                          className="dropdown-item text-red-500"
+                        >
+                          Sign Out
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <AuthCTA isWhiteText={isWhiteText} />
+                ))}
             </div>
 
             {/* ── Mobile Hamburger ── */}
@@ -330,7 +385,28 @@ const Navbar = () => {
               transition: "opacity 0.25s ease, transform 0.25s ease",
             }}
           >
-            <MobileAuthCTA />
+            {session ? (
+              <div className="flex items-center gap-3 px-4 py-3">
+                <img
+                  src={session.user?.image ?? "/default-avatar.png"}
+                  className="w-10 h-10 rounded-full"
+                />
+
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-gray-900">
+                    {session.user?.name}
+                  </p>
+                  <button
+                    onClick={() => signOut()}
+                    className="text-sm text-red-500"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <MobileAuthCTA />
+            )}
           </div>
         </div>
       </div>

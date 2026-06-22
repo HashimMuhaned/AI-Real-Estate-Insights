@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { usePathname } from "next/navigation";
 import {
   LineChart,
@@ -12,6 +12,19 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Sparkles, ArrowUpRight } from "lucide-react";
+
+// ─── hooks ────────────────────────────────────────────────────────────────────
+
+function useDebounce<T>(value: T, delay = 400): T {
+  const [debounced, setDebounced] = useState<T>(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
+
+// ─── helpers ──────────────────────────────────────────────────────────────────
 
 interface RawDataPoint {
   month: string;
@@ -31,17 +44,21 @@ type DateRangeLabel = "1Y" | "3Y" | "5Y";
 
 const ROOM_OPTIONS = [1, 2, 3, 4, 5, 6, 7];
 
-const DATE_RANGES: { label: DateRangeLabel; years: number }[] = [
-  { label: "1Y", years: 1 },
-  { label: "3Y", years: 3 },
-  { label: "5Y", years: 5 },
+const DATE_RANGES: {
+  label: DateRangeLabel;
+  years: number;
+  apiRange: string;
+}[] = [
+  { label: "1Y", years: 1, apiRange: "1 year" },
+  { label: "3Y", years: 3, apiRange: "3 years" },
+  { label: "5Y", years: 5, apiRange: "5 years" },
 ];
 
 const PROPERTY_OPTIONS: PropertyFilter[] = ["Apartment", "Villa", "Both"];
-
 const APT_COLOR = "#2563eb";
 const VILLA_COLOR = "#ea580c";
 
+/** Extracts the numeric area ID from the URL pathname. */
 function extractAreaId(pathname: string): string | null {
   const match = pathname.match(/-(\d+)(?:\/.*)?$/);
   return match ? match[1] : null;
@@ -64,6 +81,21 @@ function toMonthLabel(iso: string): string {
   });
 }
 
+/**
+ * Builds URLSearchParams for the price trend API.
+ * Pass `excludeRange = true` for charts that don't use the `range` param.
+ */
+function buildParams(
+  filters: { areaId: string | null; category: string; range: string },
+  excludeRange = false,
+): URLSearchParams {
+  const params = new URLSearchParams();
+  if (filters.areaId) params.set("areaId", filters.areaId);
+  params.set("category", filters.category);
+  if (!excludeRange) params.set("range", filters.range);
+  return params;
+}
+
 function buildMap(
   data: RawDataPoint[],
   room: number,
@@ -76,17 +108,7 @@ function buildMap(
   );
 }
 
-function fetchCategory(
-  areaId: string,
-  category: "apartment" | "villa",
-): Promise<RawDataPoint[]> {
-  return fetch(
-    `http://localhost:3000/api/areaCharts/price_trend?areaId=${areaId}&category=${category}`,
-  ).then((r) => {
-    if (!r.ok) throw new Error(`HTTP ${r.status} (${category})`);
-    return r.json();
-  });
-}
+// ─── sub-components ───────────────────────────────────────────────────────────
 
 function CustomTooltip({
   active,
@@ -228,7 +250,6 @@ function Pill({
 function AIInsightsPanel() {
   return (
     <div className="rounded-xl border border-indigo-100 bg-gradient-to-br from-white to-indigo-50/50 overflow-hidden shadow-sm">
-      {/* Header: icon + title + Ask AI button top-right */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-indigo-100/60">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-sm">
@@ -243,8 +264,6 @@ function AIInsightsPanel() {
           Ask AI about this chart
         </button>
       </div>
-
-      {/* Static insight text + view more link */}
       <div className="px-5 py-4 space-y-3">
         <p className="text-[13px] text-slate-600 leading-relaxed m-0">
           Dubai residential prices have shown resilience across both apartments
@@ -263,42 +282,78 @@ function AIInsightsPanel() {
   );
 }
 
+// ─── main component ───────────────────────────────────────────────────────────
+
 export default function PriceTrendChart() {
   const pathname = usePathname();
   const areaId = extractAreaId(pathname ?? "");
 
+  // Raw data is fetched once per areaId — all client-side filtering from here.
   const [aptData, setAptData] = useState<RawDataPoint[]>([]);
   const [villaData, setVillaData] = useState<RawDataPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // UI filters (instant)
   const [selectedRoom, setSelectedRoom] = useState<number>(2);
   const [selectedRange, setSelectedRange] = useState<DateRangeLabel>("1Y");
   const [selectedProperty, setSelectedProperty] =
     useState<PropertyFilter>("Both");
 
+  // Debounced areaId — protects against rapid route changes / hot-reload bursts
+  const debouncedAreaId = useDebounce(areaId, 400);
+
+  // ── data fetching ────────────────────────────────────────────────────────────
+  // We only need to re-fetch when areaId changes: all other filters are applied
+  // client-side. Two parallel requests (apt + villa) share one AbortController.
   useEffect(() => {
-    if (!areaId) {
+    if (!debouncedAreaId) {
       setError("Could not extract area ID from the URL.");
       return;
     }
+
+    const controller = new AbortController();
+    const { signal } = controller;
+
     setLoading(true);
     setError(null);
-    Promise.all([
-      fetchCategory(areaId, "apartment"),
-      fetchCategory(areaId, "villa"),
-    ])
+    // Previous data stays visible while the new request is in-flight.
+
+    const apiRange =
+      DATE_RANGES.find((r) => r.label === selectedRange)?.apiRange ?? "3 years";
+
+    const fetchCategory = (category: "apartment" | "villa") => {
+      const params = buildParams(
+        { areaId: debouncedAreaId, category, range: apiRange },
+        false, // this chart uses `range`
+      );
+      return fetch(
+        `http://localhost:3000/api/areaCharts/price_trend?${params.toString()}`,
+        { signal },
+      ).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status} (${category})`);
+        return r.json() as Promise<RawDataPoint[]>;
+      });
+    };
+
+    Promise.all([fetchCategory("apartment"), fetchCategory("villa")])
       .then(([apt, villa]) => {
         setAptData(Array.isArray(apt) ? apt : []);
         setVillaData(Array.isArray(villa) ? villa : []);
         setLoading(false);
       })
       .catch((e: Error) => {
+        if (e.name === "AbortError") return; // cancelled — don't update state
         setError(e.message ?? "Failed to fetch data");
         setLoading(false);
       });
-  }, [areaId]);
 
+    return () => controller.abort();
+    // selectedRange is intentionally included: switching range requires a new
+    // server fetch because the API applies the window server-side.
+  }, [debouncedAreaId, selectedRange]);
+
+  // ── room availability ────────────────────────────────────────────────────────
   const aptRooms = useMemo(
     () => new Set(aptData.map((d) => d.rooms)),
     [aptData],
@@ -313,11 +368,10 @@ export default function PriceTrendChart() {
       ROOM_OPTIONS.map((r) => {
         const hasApt = aptRooms.has(r);
         const hasVilla = villaRooms.has(r);
-        let disabled = false;
-        if (selectedProperty === "Apartment" && !hasApt) disabled = true;
-        if (selectedProperty === "Villa" && !hasVilla) disabled = true;
-        if (selectedProperty === "Both" && !hasApt && !hasVilla)
-          disabled = true;
+        const disabled =
+          (selectedProperty === "Apartment" && !hasApt) ||
+          (selectedProperty === "Villa" && !hasVilla) ||
+          (selectedProperty === "Both" && !hasApt && !hasVilla);
         return {
           room: r,
           disabled,
@@ -328,6 +382,7 @@ export default function PriceTrendChart() {
     [aptRooms, villaRooms, selectedProperty],
   );
 
+  // Auto-select first valid room if the current one becomes disabled.
   useEffect(() => {
     const meta = roomMeta.find((m) => m.room === selectedRoom);
     if (meta?.disabled) {
@@ -336,10 +391,11 @@ export default function PriceTrendChart() {
     }
   }, [roomMeta, selectedRoom]);
 
+  // ── chart data (client-side filtering only) ──────────────────────────────────
   const chartData = useMemo<ChartPoint[]>(() => {
-    const cutoff = new Date();
     const years =
       DATE_RANGES.find((r) => r.label === selectedRange)?.years ?? 1;
+    const cutoff = new Date();
     cutoff.setFullYear(cutoff.getFullYear() - years);
 
     const aptMap = buildMap(aptData, selectedRoom, cutoff);
@@ -349,8 +405,6 @@ export default function PriceTrendChart() {
       new Set([...Array.from(aptMap.keys()), ...Array.from(villaMap.keys())]),
     ).sort();
 
-    if (allMonths.length === 0) return [];
-
     return allMonths.map((month) => ({
       date: toMonthLabel(month),
       apartmentMedian: aptMap.get(month) ?? null,
@@ -358,6 +412,7 @@ export default function PriceTrendChart() {
     }));
   }, [aptData, villaData, selectedRoom, selectedRange]);
 
+  // ── derived display flags ────────────────────────────────────────────────────
   const showApt =
     selectedProperty === "Apartment" || selectedProperty === "Both";
   const showVilla = selectedProperty === "Villa" || selectedProperty === "Both";
@@ -370,6 +425,7 @@ export default function PriceTrendChart() {
     selectedProperty === "Both" && hasVillaData && !hasAptData;
   const partialBoth = bothButOnlyApt || bothButOnlyVilla;
 
+  // ── render ───────────────────────────────────────────────────────────────────
   return (
     <div className="w-full bg-gradient-to-br from-white to-stone-100 rounded-2xl p-6 md:p-8 border border-stone-200 shadow-sm font-sans space-y-5">
       {/* Header */}
@@ -388,7 +444,7 @@ export default function PriceTrendChart() {
         )}
       </div>
 
-      {/* Single filter bar */}
+      {/* Filter bar */}
       <div className="flex items-center gap-3 flex-wrap px-4 py-3 bg-white rounded-xl border border-stone-200">
         {/* Property */}
         <div className="flex items-center gap-2">
@@ -449,10 +505,22 @@ export default function PriceTrendChart() {
           </div>
         </div>
 
+        {/* Partial data legend hint */}
         {selectedProperty === "Both" && !loading && (
           <div className="flex items-center gap-1.5 text-[11px] text-amber-600 ml-auto">
             <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
             Rooms with partial data
+          </div>
+        )}
+
+        {/* Inline loading indicator — doesn't clear the chart */}
+        {loading && (
+          <div className="flex items-center gap-2 text-[11px] text-slate-400 ml-auto">
+            <div
+              className="w-3.5 h-3.5 rounded-full border-2 border-stone-200 border-t-amber-500"
+              style={{ animation: "spin 0.8s linear infinite" }}
+            />
+            Updating…
           </div>
         )}
       </div>
@@ -470,7 +538,7 @@ export default function PriceTrendChart() {
         </div>
       )}
 
-      {/* Legend (Both mode) */}
+      {/* Legend */}
       {selectedProperty === "Both" && (
         <div className="flex gap-6 pl-1">
           {[
@@ -500,12 +568,13 @@ export default function PriceTrendChart() {
         </div>
       )}
 
-      {/* AI Insights Panel */}
+      {/* AI Insights */}
       <AIInsightsPanel />
 
-      {/* Chart */}
+      {/* Chart area — previous data stays visible while loading */}
       <div className="relative min-h-[380px] flex items-center justify-center bg-white rounded-xl border border-stone-200 pt-5 pb-3">
-        {loading && (
+        {/* Overlay only when loading AND no data exists yet */}
+        {loading && !hasData && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white rounded-xl z-10">
             <div
               className="w-7 h-7 rounded-full border-[3px] border-stone-200 border-t-amber-500"
@@ -525,68 +594,76 @@ export default function PriceTrendChart() {
           </p>
         )}
 
-        {!loading && !error && hasData && (
-          <ResponsiveContainer width="100%" height={360}>
-            <LineChart
-              data={chartData}
-              margin={{ top: 8, right: 32, bottom: 8, left: 8 }}
-            >
-              <CartesianGrid
-                stroke="#e7e5e4"
-                strokeDasharray="3 6"
-                vertical={false}
-              />
-              <XAxis
-                dataKey="date"
-                tick={{ fill: "#94a3b8", fontSize: 11 }}
-                axisLine={{ stroke: "#e7e5e4" }}
-                tickLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                tickFormatter={formatShort}
-                tick={{ fill: "#94a3b8", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-                width={62}
-              />
-              <Tooltip content={<CustomTooltip filter={selectedProperty} />} />
-              {showApt && (
-                <Line
-                  type="monotone"
-                  dataKey="apartmentMedian"
-                  name="Apartment"
-                  stroke={APT_COLOR}
-                  strokeWidth={2.5}
-                  dot={false}
-                  activeDot={{
-                    r: 5,
-                    fill: APT_COLOR,
-                    stroke: "#fff",
-                    strokeWidth: 2,
-                  }}
-                  connectNulls
+        {/* Chart renders even while loading — shows stale data with opacity hint */}
+        {hasData && (
+          <div
+            className="w-full h-full transition-opacity duration-300"
+            style={{ opacity: loading ? 0.5 : 1 }}
+          >
+            <ResponsiveContainer width="100%" height={360}>
+              <LineChart
+                data={chartData}
+                margin={{ top: 8, right: 32, bottom: 8, left: 8 }}
+              >
+                <CartesianGrid
+                  stroke="#e7e5e4"
+                  strokeDasharray="3 6"
+                  vertical={false}
                 />
-              )}
-              {showVilla && (
-                <Line
-                  type="monotone"
-                  dataKey="villaMedian"
-                  name="Villa"
-                  stroke={VILLA_COLOR}
-                  strokeWidth={2.5}
-                  dot={false}
-                  activeDot={{
-                    r: 5,
-                    fill: VILLA_COLOR,
-                    stroke: "#fff",
-                    strokeWidth: 2,
-                  }}
-                  connectNulls
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: "#94a3b8", fontSize: 11 }}
+                  axisLine={{ stroke: "#e7e5e4" }}
+                  tickLine={false}
+                  interval="preserveStartEnd"
                 />
-              )}
-            </LineChart>
-          </ResponsiveContainer>
+                <YAxis
+                  tickFormatter={formatShort}
+                  tick={{ fill: "#94a3b8", fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={62}
+                />
+                <Tooltip
+                  content={<CustomTooltip filter={selectedProperty} />}
+                />
+                {showApt && (
+                  <Line
+                    type="monotone"
+                    dataKey="apartmentMedian"
+                    name="Apartment"
+                    stroke={APT_COLOR}
+                    strokeWidth={2.5}
+                    dot={false}
+                    activeDot={{
+                      r: 5,
+                      fill: APT_COLOR,
+                      stroke: "#fff",
+                      strokeWidth: 2,
+                    }}
+                    connectNulls
+                  />
+                )}
+                {showVilla && (
+                  <Line
+                    type="monotone"
+                    dataKey="villaMedian"
+                    name="Villa"
+                    stroke={VILLA_COLOR}
+                    strokeWidth={2.5}
+                    dot={false}
+                    activeDot={{
+                      r: 5,
+                      fill: VILLA_COLOR,
+                      stroke: "#fff",
+                      strokeWidth: 2,
+                    }}
+                    connectNulls
+                  />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         )}
       </div>
 
@@ -598,10 +675,6 @@ export default function PriceTrendChart() {
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-4px); }
-        }
       `}</style>
     </div>
   );

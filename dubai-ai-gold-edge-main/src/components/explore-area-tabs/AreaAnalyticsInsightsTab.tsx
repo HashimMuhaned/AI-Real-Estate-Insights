@@ -1,85 +1,205 @@
-"use client";
-
 import React, { useState } from "react";
-import { motion } from "framer-motion";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import TopProjectsInArea from "@/components/charts/(general)/TopProjectsInArea";
-import VillaAppartementPriceTrend from "@/components/charts/(general)/VillaAppartementPriceTrend";
-import AreaOverView from "@/components/charts/(general)/AreaOverView";
-import { useParams } from "next/navigation";
-import RentalYeildInArea from "@/components/charts/RentalYeildInArea";
-import RentalYieldANDPriceToRentRatio from "@/components/charts/(general)/RentalYieldANDPriceToRentRatio";
-import VillaApartmentPricePerRoom from "@/components/charts/(general)/ApartmentVillaPricePerBedRoomNumber";
-import PriceTrendChart from "../charts/(areaCharts)/PriceTrendChart";
-import RentPriceTrend from "../charts/(areaCharts)/RentTrendChart";
-import YieldChart from "../charts/(areaCharts)/YieldHorizontalRank";
-import VolumeChart from "../charts/(areaCharts)/TransactionVolumn";
-import GrowthComparisonChart from "../charts/(areaCharts)/GrowthComparisonChart";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  TrendingUp,
+  BarChart2,
+  GitCompare,
+  Zap,
+  Package,
+  Bot,
+} from "lucide-react";
 
-type Props = {
-  params: { areaName: string };
+import InsightsTabNav, { TABS } from "./analytics/InsightsTabNav";
+import InsightsSectionHeader from "./analytics/InsightsSectionHeader";
+import ChartSection from "./analytics/ChartSection";
+import PlaceholderPanel from "./analytics/PlaceholderPanel";
+import AIAdvisorPanel from "./analytics/AIAdvisorPanel";
+
+// Chart imports — these exist externally and are NOT being rebuilt
+// import AreaOverView from "@/components/charts/(general)/AreaOverView";
+import RentalYeildInArea from "@/components/charts/RentalYeildInArea";
+import PriceTrendChart from "@/components/charts/(areaCharts)/priceTrend/PriceTrendChart";
+import RentPriceTrend from "@/components/charts/(areaCharts)/RentTrend/RentTrendChart";
+import YieldChart from "@/components/charts/(areaCharts)/yield/YieldHorizontalRank";
+import VolumeChart from "@/components/charts/(areaCharts)/transactionVolume/TransactionVolume";
+import GrowthComparisonChart from "@/components/charts/(areaCharts)/growthComparison/GrowthComparisonChart";
+import GrossYieldChart from "@/components/charts/(areaCharts)/RentIntellegence/rental_yield_ranking/RentalYieldRanking";
+import RentHeatmap from "@/components/charts/(areaCharts)/RentIntellegence/rent_heatmap/RentHeatmap";
+import YieldTrendChart from "@/components/charts/(areaCharts)/RentIntellegence/yield_rent/YieldRent";
+import RentalDistribution from "@/components/charts/(areaCharts)/RentIntellegence/rent_distribution/Rentaldistribution";
+import RentalHistogram from "@/components/charts/(areaCharts)/RentIntellegence/rental_histogram/Rentalhistogram";
+import RentalMomentumChart from "../charts/(areaCharts)/RentIntellegence/rent_momentum_chart/Rentalmomentumchart";
+import InvestmentScore from "../charts/(areaCharts)/InvestmentSignals/InvestmentScore/InvestmentScore";
+
+const ICON_MAP = { TrendingUp, BarChart2, GitCompare, Zap, Package, Bot };
+
+const panelVariants = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -8 },
 };
 
-export default function AreaAnalyticsInsightsTab({ name }: { name: string }) {
-  //   const { areaName } = useParams<{ areaName: string }>();
-  //   const name = areaName ? areaName.replace(/-/g, " ") : "";
+export default function AreaAnalyticsInsightsTab({ name }) {
+  const [active, setActive] = useState("general");
+  const activeTab = TABS.find((t) => t.id === active);
 
   return (
-    <div>
-      {/* <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="pt-28 pb-12 bg-gradient-to-br from-primary to-primary/80 geometric-pattern"
-      >
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-primary-foreground">
-            <Link
-              href="/explore-areas"
-              className="inline-flex items-center gap-2 text-primary-foreground/80 hover:text-primary-foreground mb-6 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to All Areas
-            </Link>
-            <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6">
-              {name} Insights
-            </h1>
-            <p className="text-xl text-primary-foreground/90 max-w-2xl">
-              Comprehensive investment analysis and market insights for {name}
-            </p>
-          </div>
-        </div>
-      </motion.section> */}
-      <div>
-        <Tabs defaultValue="general" className="p-4 md:p-6">
-          <TabsList className="grid w-full grid-cols-1 md:grid-cols-5 my-[1rem]">
-            <TabsTrigger value="general">General Insights</TabsTrigger>
-            <TabsTrigger value="rental">Rental Analysis</TabsTrigger>
-            <TabsTrigger value="comparison">Market Comparison</TabsTrigger>
-            <TabsTrigger value="signals">Investment Signals</TabsTrigger>
-            <TabsTrigger value="premium">Premium Features</TabsTrigger>
-          </TabsList>
+    <div className="w-full min-h-screen bg-background">
+      {/* Tab Navigation */}
+      <InsightsTabNav active={active} setActive={setActive} icons={ICON_MAP} />
 
-          <TabsContent value="general">
-            <AreaOverView area={name} />
-            <PriceTrendChart />
-            <RentPriceTrend />
-            <YieldChart />
-            <VolumeChart />
-            <GrowthComparisonChart />
-            {/* <VillaAppartementPriceTrend selectedArea={name} />
-            <VillaApartmentPricePerRoom areaName={name} />
-            <TopProjectsInArea />
-            <RentalYieldANDPriceToRentRatio selectedArea={name} /> */}
-          </TabsContent>
+      {/* Section Header */}
+      {activeTab && (
+        <InsightsSectionHeader
+          icon={ICON_MAP[activeTab.icon]}
+          label={activeTab.label}
+          sub={activeTab.sub}
+        />
+      )}
 
-          <TabsContent value="rental">
-            <RentalYeildInArea areaName={name} />
-          </TabsContent>
-        </Tabs>
-      </div> 
+      {/* Tab Panels */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={active}
+          variants={panelVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+        >
+          {active === "general" && (
+            <div>
+              {/* <ChartSection
+                number="01"
+                label="Area Market Overview"
+                sub="Price distribution, transaction activity, and supply trends"
+              >
+                <AreaOverView area={name} />
+              </ChartSection> */}
+              <ChartSection
+                number="02"
+                label="Price Trend"
+                sub="Sales price per sqft over time"
+              >
+                <PriceTrendChart />
+              </ChartSection>
+              <ChartSection
+                number="03"
+                label="Rent Price Trend"
+                sub="Average rent movement across unit types"
+              >
+                <RentPriceTrend />
+              </ChartSection>
+              <ChartSection
+                number="04"
+                label="Yield Ranking"
+                sub="Gross yield across sub-communities, sorted by performance"
+              >
+                <YieldChart />
+              </ChartSection>
+              <ChartSection
+                number="05"
+                label="Transaction Volume"
+                sub="Monthly deal count — market momentum indicator"
+              >
+                <VolumeChart />
+              </ChartSection>
+              <ChartSection
+                number="06"
+                label="Growth Comparison"
+                sub="Year-on-year price growth vs comparable areas"
+              >
+                <GrowthComparisonChart />
+              </ChartSection>
+            </div>
+          )}
+
+          {active === "rental" && (
+            <div>
+              {/* <ChartSection
+                number="01"
+                label="Rental Intelligence"
+                sub="Yield breakdown by unit type and bedroom count"
+              >
+                <RentalYeildInArea areaName={name} />
+              </ChartSection> */}
+              <ChartSection
+                number="02"
+                label="Gross Yield Ranking"
+                sub="Top-performing communities by rental yield"
+              >
+                <GrossYieldChart />
+              </ChartSection>
+              <ChartSection
+                number="03"
+                label="Rent Heatmap"
+                sub="Rental price intensity across the area"
+              >
+                <RentHeatmap />
+              </ChartSection>
+              <ChartSection
+                number="04"
+                label="Yield Trend"
+                sub="Rental yield movement over time"
+              >
+                <YieldTrendChart />
+              </ChartSection>
+              <ChartSection
+                number="05"
+                label="Rent Distribution"
+                sub="Rental price spread by property type"
+              >
+                <RentalDistribution />
+              </ChartSection>
+              <ChartSection
+                number="06"
+                label="Rent Distribution Histogram"
+                sub="Frequency distribution of rental prices"
+              >
+                <RentalHistogram />
+              </ChartSection>
+              <ChartSection
+                number="07"
+                label="Rental Momentum Chart"
+                sub="rent growth acceleration/deceleration"
+              >
+                <RentalMomentumChart />
+              </ChartSection>
+            </div>
+          )}
+
+          {active === "comparison" && (
+            <PlaceholderPanel
+              icon={GitCompare}
+              label="Market Comparison"
+              sub="Side-by-side area benchmarks"
+            />
+          )}
+
+          {active === "signals" && (
+            // <PlaceholderPanel
+            //   icon={Zap}
+            //   label="Investment Signals"
+            //   sub="Smart buy/sell indicators"
+            // />
+            <div>
+              <ChartSection number="01" label="investment score" sub="">
+                <InvestmentScore />
+              </ChartSection>
+            </div>
+          )}
+
+          {active === "supply_dev" && (
+            <PlaceholderPanel
+              icon={Package}
+              label="Supply & Development"
+              sub="Pipeline and handover data"
+            />
+          )}
+
+          {active === "AI" && <AIAdvisorPanel name={name} />}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

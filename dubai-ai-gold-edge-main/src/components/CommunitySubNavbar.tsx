@@ -1,92 +1,145 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
-const CommunitySubNav = () => {
-  const [isVisible, setIsVisible] = useState(false);
-  const [activeSection, setActiveSection] = useState("");
+const NAV_LINKS = [
+  { name: "Overview", href: "#overview" },
+  { name: "Investor Verdict", href: "#investor-verdict" },
+  { name: "Risks", href: "#risks" },
+  { name: "Gallery", href: "#gallery" },
+  { name: "Classifications", href: "#classifications" },
+  { name: "Amenities", href: "#amenities" },
+  { name: "Accessibility", href: "#accessibility" },
+  { name: "Location", href: "#location" },
+  { name: "Projects", href: "#projects" },
+  { name: "Market Insights", href: "#market-insights" },
+];
 
-  const navLinks = [
-    { name: "Details", href: "#details" },
-    { name: "Special Classifications", href: "#classifications" },
-    { name: "Amenities", href: "#amenities" },
-    { name: "Road Locations", href: "#roads" },
-    { name: "Description", href: "#description" },
-    { name: "Location", href: "#location" },
-    { name: "Projects", href: "#projects" },
-    { name: "Market Insights", href: "#market-insights" },
-  ];
+// Heights must match AreaPageDetails constants exactly.
+// When the subnav is visible we are already in sticky mode, so the full
+// three-bar stack is present: navbar (80) + subnav (44) + tab bar (48).
+const NAVBAR_HEIGHT = 80;
+const SUBNAV_HEIGHT = 44;
+const TAB_BAR_HEIGHT = 48;
+const SCROLL_OFFSET = NAVBAR_HEIGHT + SUBNAV_HEIGHT + TAB_BAR_HEIGHT + 8; // 180
 
+interface Props {
+  /** True when the pill toggle has scrolled behind the navbar */
+  isVisible: boolean;
+  activeSection: string;
+  onSectionChange: (id: string) => void;
+}
+
+export default function CommunitySubNav({
+  isVisible,
+  activeSection,
+  onSectionChange,
+}: Props) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const activeButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  // Keep the active link centred inside the horizontal strip
   useEffect(() => {
-    const handleScroll = () => {
-      // Show sub-nav after scrolling past main nav
-      setIsVisible(window.scrollY > 100);
-
-      // Update active section based on scroll position
-      const sections = navLinks.map((link) => link.href.substring(1));
-      let current = "";
-
-      for (const section of sections) {
-        const element = document.getElementById(section);
-        if (element) {
-          const rect = element.getBoundingClientRect();
-          if (rect.top <= 150 && rect.bottom >= 150) {
-            current = section;
-            break;
-          }
-        }
-      }
-
-      setActiveSection(current);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+    if (activeButtonRef.current && scrollRef.current) {
+      const container = scrollRef.current;
+      const btn = activeButtonRef.current;
+      const left =
+        btn.offsetLeft - container.clientWidth / 2 + btn.clientWidth / 2;
+      container.scrollTo({ left, behavior: "smooth" });
+    }
+  }, [activeSection]);
 
   const scrollToSection = (href: string) => {
-    const element = document.getElementById(href.substring(1));
-    if (element) {
-      const offset = 140; // Account for both navbars
-      const elementPosition = element.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - offset;
-
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: "smooth",
-      });
-    }
+    const id = href.substring(1);
+    const el = document.getElementById(id);
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY - SCROLL_OFFSET;
+    window.scrollTo({ top, behavior: "smooth" });
+    // Optimistically update active section so the highlight is immediate
+    onSectionChange(id);
   };
 
   return (
-    <div
-      className={`fixed top-16 left-0 right-0 z-40 transition-all duration-300 ${
-        isVisible
-          ? "translate-y-0 opacity-100"
-          : "-translate-y-full opacity-0"
-      } bg-background border-b border-border/50`}
-    >
-      <div className="container mx-auto px-6">
-        <div className="flex items-center overflow-x-auto scrollbar-hide">
-          <div className="flex space-x-1 py-3">
-            {navLinks.map((link) => (
-              <button
-                key={link.name}
-                onClick={() => scrollToSection(link.href)}
-                className={`px-4 py-2 text-sm font-medium whitespace-nowrap rounded-md transition-all duration-200 ${
-                  activeSection === link.href.substring(1)
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-              >
-                {link.name}
-              </button>
-            ))}
+    <AnimatePresence>
+      {isVisible && (
+        <motion.nav
+          key="community-subnav"
+          initial={{ y: -(SUBNAV_HEIGHT + 4), opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: -(SUBNAV_HEIGHT + 4), opacity: 0 }}
+          transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+          className="fixed left-0 right-0 z-40"
+          style={{
+            top: NAVBAR_HEIGHT, // flush under the main navbar
+            height: SUBNAV_HEIGHT,
+            background: "rgba(255,255,255,0.98)",
+            backdropFilter: "blur(14px)",
+            borderBottom: "1px solid rgba(0,0,0,0.07)",
+            boxShadow: "0 1px 8px rgba(0,0,0,0.05)",
+          }}
+          aria-label="Section navigation"
+        >
+          <div
+            ref={scrollRef}
+            className="flex items-center gap-0.5 h-full overflow-x-auto px-4 sm:px-8"
+            style={
+              {
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+              } as React.CSSProperties
+            }
+          >
+            {NAV_LINKS.map((link) => {
+              const sectionId = link.href.substring(1);
+              const isActive = activeSection === sectionId;
+              return (
+                <button
+                  key={link.name}
+                  // Store ref on the active button so we can auto-scroll to it
+                  ref={(el) => {
+                    if (isActive) activeButtonRef.current = el;
+                  }}
+                  onClick={() => scrollToSection(link.href)}
+                  className="relative flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 text-[12px] font-semibold whitespace-nowrap transition-colors duration-150 rounded-lg"
+                  style={{
+                    color: isActive ? "#0a0f1e" : "#9ca3af",
+                    background: isActive
+                      ? "rgba(201,168,76,0.08)"
+                      : "transparent",
+                  }}
+                >
+                  {isActive && (
+                    <motion.span
+                      layoutId="subnav-dot"
+                      className="w-1 h-1 rounded-full flex-shrink-0"
+                      style={{ background: "#c9a84c" }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 35,
+                      }}
+                    />
+                  )}
+                  {link.name}
+                  {isActive && (
+                    <motion.span
+                      layoutId="subnav-line"
+                      className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full"
+                      style={{ background: "#c9a84c" }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 35,
+                      }}
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
-        </div>
-      </div>
-    </div>
+        </motion.nav>
+      )}
+    </AnimatePresence>
   );
-};
-
-export default CommunitySubNav;
+}

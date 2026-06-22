@@ -20,6 +20,7 @@ import { signIn } from "next-auth/react";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -37,20 +38,26 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     setLoading(true);
+    setError("");
 
     const result = await signIn("credentials", {
       redirect: false,
-      email: formData.email,
+      email: formData.email.toLowerCase().trim(),
       password: formData.password,
     });
 
     setLoading(false);
 
     if (result?.error) {
-      alert("Invalid email or password"); // Replace with toast UI if you want
+      if (result.error === "CredentialsSignin") {
+        setError("Invalid email or password");
+      } else {
+        setError(result.error);
+      }
     } else {
-      router.push("/dashboard"); // Redirect after login
+      router.push("/");
     }
   };
 
@@ -126,6 +133,11 @@ const Login = () => {
                       )}
                     </Button>
                   </div>
+                  {error && (
+                    <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-600">
+                      {error}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -151,7 +163,7 @@ const Login = () => {
                   variant="outline"
                   className="w-full h-12 text-lg font-medium"
                   onClick={() =>
-                    signIn("google", { callbackUrl: "/dashboard" })
+                    signIn("google", { callbackUrl: "/" })
                   }
                 >
                   Continue with Google

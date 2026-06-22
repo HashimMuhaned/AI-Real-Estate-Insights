@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import {
   LineChart,
   Line,
@@ -12,6 +12,8 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
+import { useDebounce } from "./Usedebounce";
+import { buildParams } from "./Buildparams";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,38 +39,22 @@ function getAreaIdFromUrl(): number | null {
   return isNaN(id) ? null : id;
 }
 
-const RANGE_MAP: Record<DateRange, string> = {
+const RANGE_LABEL: Record<DateRange, string> = {
   "1Y": "1 year",
   "3Y": "3 years",
   "5Y": "5 years",
 };
 
-function buildApiUrl(
-  areaId: number | null,
-  category: PropertyCategory,
-  rooms: number | null,
-  dateRange: DateRange
-): string {
-  const base = "/api/areaCharts/growth_comparison";
-  const params = new URLSearchParams();
-  if (areaId) params.set("areaId", String(areaId));
-  params.set("category", category);
-  if (rooms !== null) params.set("rooms", String(rooms));
-  params.set("range", RANGE_MAP[dateRange]);
-  const qs = params.toString();
-  return qs ? `${base}?${qs}` : base;
-}
-
-/** Convert flat API data into chart-friendly time series  */
+/** Convert flat API data into chart-friendly time series */
 function buildChartData(
   data: GrowthDataPoint[],
   range: DateRange,
-  mode: ChartMode
+  mode: ChartMode,
 ) {
   const yearCount = range === "1Y" ? 1 : range === "3Y" ? 3 : 5;
   const now = new Date().getFullYear();
   const years = Array.from({ length: yearCount + 1 }, (_, i) =>
-    String(now - yearCount + i)
+    String(now - yearCount + i),
   );
 
   const priceGrowths = data
@@ -78,14 +64,11 @@ function buildChartData(
     .map((d) => parseFloat(d.rent_growth ?? ""))
     .filter((v) => !isNaN(v));
 
-  const avgPrice =
-    priceGrowths.length > 0
-      ? priceGrowths.reduce((a, b) => a + b, 0) / priceGrowths.length
-      : 0;
-  const avgRent =
-    rentGrowths.length > 0
-      ? rentGrowths.reduce((a, b) => a + b, 0) / rentGrowths.length
-      : 0;
+  const avg = (arr: number[]) =>
+    arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+
+  const avgPrice = avg(priceGrowths);
+  const avgRent = avg(rentGrowths);
 
   return years.map((year, i) => {
     const fraction = i / yearCount;
@@ -95,13 +78,12 @@ function buildChartData(
         "Price Growth (%)": parseFloat((avgPrice * fraction).toFixed(2)),
         "Rent Growth (%)": parseFloat((avgRent * fraction).toFixed(2)),
       };
-    } else {
-      return {
-        year,
-        "Price Index": parseFloat((100 + avgPrice * fraction).toFixed(2)),
-        "Rent Index": parseFloat((100 + avgRent * fraction).toFixed(2)),
-      };
     }
+    return {
+      year,
+      "Price Index": parseFloat((100 + avgPrice * fraction).toFixed(2)),
+      "Rent Index": parseFloat((100 + avgRent * fraction).toFixed(2)),
+    };
   });
 }
 
@@ -123,12 +105,13 @@ function FilterChip({
       onClick={onClick}
       disabled={disabled}
       className={`
-        px-4 py-1.5 rounded-full text-sm font-medium tracking-wide transition-all duration-200 border
-        ${disabled
-          ? "opacity-30 cursor-not-allowed bg-transparent text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]"
-          : active
-            ? "bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] border-[hsl(var(--accent))] shadow-[var(--shadow-gold)]"
-            : "bg-transparent text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))] hover:border-[hsl(var(--accent))] hover:text-[hsl(var(--foreground))]"
+        px-3 py-1 rounded-full text-xs font-medium tracking-wide transition-all duration-200 border whitespace-nowrap
+        ${
+          disabled
+            ? "opacity-30 cursor-not-allowed bg-transparent text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))]"
+            : active
+              ? "bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] border-[hsl(var(--accent))] shadow-[var(--shadow-gold)]"
+              : "bg-transparent text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))] hover:border-[hsl(var(--accent))] hover:text-[hsl(var(--foreground))]"
         }
       `}
     >
@@ -139,9 +122,15 @@ function FilterChip({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-[10px] uppercase tracking-[0.15em] text-[hsl(var(--muted-foreground))] font-semibold">
+    <span className="text-[10px] uppercase tracking-[0.15em] text-[hsl(var(--muted-foreground))] font-semibold whitespace-nowrap">
       {children}
     </span>
+  );
+}
+
+function Divider() {
+  return (
+    <span className="text-[hsl(var(--border))] text-sm select-none">|</span>
   );
 }
 
@@ -179,71 +168,163 @@ const CustomTooltip = ({
   );
 };
 
+// ─── AI Insight Component ─────────────────────────────────────────────────────
+
+function AIInsightBox() {
+  return (
+    <div className="relative rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] px-5 py-4">
+      {/* Top-right button */}
+      <div className="absolute top-3 right-3">
+        <button
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[hsl(var(--accent)/0.5)] text-[hsl(var(--accent))] bg-[hsl(var(--accent)/0.08)] hover:bg-[hsl(var(--accent)/0.15)] transition-all duration-200"
+        >
+          {/* Sparkle icon */}
+          <svg
+            className="w-3.5 h-3.5"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M8 1.5L9.2 6.8L14.5 8L9.2 9.2L8 14.5L6.8 9.2L1.5 8L6.8 6.8L8 1.5Z"
+              fill="currentColor"
+            />
+          </svg>
+          Ask AI about this chart
+        </button>
+      </div>
+
+      {/* Label */}
+      <div className="flex items-center gap-2 mb-2">
+        <svg
+          className="w-3.5 h-3.5 text-[hsl(var(--accent))]"
+          viewBox="0 0 16 16"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M8 1.5L9.2 6.8L14.5 8L9.2 9.2L8 14.5L6.8 9.2L1.5 8L6.8 6.8L8 1.5Z"
+            fill="currentColor"
+          />
+        </svg>
+        <span className="text-[10px] uppercase tracking-[0.15em] font-semibold text-[hsl(var(--accent))]">
+          AI Insight
+        </span>
+      </div>
+
+      {/* Insight text */}
+      <p className="text-sm text-[hsl(var(--muted-foreground))] leading-relaxed pr-40">
+        Price growth in this area has consistently outpaced rent growth over the
+        selected period, suggesting strong capital appreciation potential.
+        Apartments with 2–3 bedrooms show the highest yield stability, while
+        villas above 4 bedrooms display more volatility tied to seasonal demand
+        cycles.{" "}
+        <button className="text-[hsl(var(--accent))] hover:underline underline-offset-2 font-medium transition-colors duration-150 inline">
+          View more insights →
+        </button>
+      </p>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function GrowthComparisonChart() {
-  const [data, setData] = useState<GrowthDataPoint[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+const ALLOWED_ROOMS: Record<PropertyCategory, number[]> = {
+  apartment: [1, 2, 3, 4],
+  villa: [2, 3, 4, 5],
+};
 
-  // Filters
+const GOLD = "hsl(45, 85%, 55%)";
+const EMERALD = "hsl(160, 75%, 35%)";
+const ROOM_OPTIONS = Array.from({ length: 7 }, (_, i) => i + 1);
+
+export default function GrowthComparisonChart() {
+  // ── Stable area id (URL-derived, never changes) ────────────────────────────
+  const areaId = useMemo(() => getAreaIdFromUrl(), []);
+
+  // ── Filter state ───────────────────────────────────────────────────────────
   const [category, setCategory] = useState<PropertyCategory>("villa");
   const [rooms, setRooms] = useState<number | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>("1Y");
   const [chartMode, setChartMode] = useState<ChartMode>("dual");
 
-  // Rooms allowed per category:
-  // apartment: 1–4 only (disable 5, 6, 7)
-  // villa: 2–5 only (disable 1, 6, 7)
-  const ALLOWED_ROOMS: Record<PropertyCategory, number[]> = {
-    apartment: [1, 2, 3, 4],
-    villa: [2, 3, 4, 5],
-  };
+  // ── Debounced filters (only these trigger API calls) ───────────────────────
+  const debouncedCategory = useDebounce(category, 400);
+  const debouncedRooms = useDebounce(rooms, 400);
+  const debouncedRange = useDebounce(dateRange, 400);
+
+  // ── Fetch state (data is NEVER cleared between requests) ──────────────────
+  const [data, setData] = useState<GrowthDataPoint[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // AbortController ref – cancelled on every new fetch
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    // Cancel any in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const qs = buildParams({
+      areaId,
+      category: debouncedCategory,
+      rooms: debouncedRooms,
+      range: RANGE_LABEL[debouncedRange],
+    });
+
+    const url = `/api/areaCharts/growth_comparison${qs ? `?${qs}` : ""}`;
+
+    setLoading(true);
+    setError(null);
+    // ⚠️  Do NOT call setData([]) here — keeps previous data visible
+
+    fetch(url, { signal: controller.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json() as Promise<GrowthDataPoint[]>;
+      })
+      .then((json) => {
+        setData(json);
+      })
+      .catch((e) => {
+        // Ignore abort errors — they're intentional
+        if (e.name !== "AbortError") setError(e.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [areaId, debouncedCategory, debouncedRooms, debouncedRange]);
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
 
   function handleCategoryChange(next: PropertyCategory) {
     setCategory(next);
-    // Reset room selection if current room is not valid for the new category
+    // Reset room if it's not valid for the new category
     if (rooms !== null && !ALLOWED_ROOMS[next].includes(rooms)) {
       setRooms(null);
     }
   }
 
-  const areaId = useMemo(() => getAreaIdFromUrl(), []);
-
-  // ── Fetch ──────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const url = buildApiUrl(areaId, category, rooms, dateRange);
-    setLoading(true);
-    setError(null);
-
-    fetch(url)
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((json: GrowthDataPoint[]) => setData(json))
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [areaId, category, rooms, dateRange]);
-
-  // ── Chart data ────────────────────────────────────────────────────────────
+  // ── Chart data (depends on chartMode too, so not behind debounce) ─────────
   const chartData = useMemo(
     () => buildChartData(data, dateRange, chartMode),
-    [data, dateRange, chartMode]
+    [data, dateRange, chartMode],
   );
 
-  const isPriceKey = chartMode === "dual" ? "Price Growth (%)" : "Price Index";
-  const isRentKey = chartMode === "dual" ? "Rent Growth (%)" : "Rent Index";
+  const priceKey = chartMode === "dual" ? "Price Growth (%)" : "Price Index";
+  const rentKey = chartMode === "dual" ? "Rent Growth (%)" : "Rent Index";
 
-  // Gold & Emerald from design system
-  const GOLD = "hsl(45, 85%, 55%)";
-  const EMERALD = "hsl(160, 75%, 35%)";
-
-  const roomOptions = Array.from({ length: 7 }, (_, i) => i + 1);
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div
-      className="luxury-card p-6 space-y-6"
+      className="luxury-card p-6 space-y-5"
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
       {/* Header */}
@@ -255,7 +336,7 @@ export default function GrowthComparisonChart() {
           >
             Growth Comparison
           </h2>
-          {areaId && (
+          {areaId !== null && (
             <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
               Area ID:{" "}
               <span className="text-[hsl(var(--accent))] font-semibold">
@@ -283,86 +364,84 @@ export default function GrowthComparisonChart() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="space-y-3">
-        {/* Property type */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <SectionLabel>Property</SectionLabel>
-          <div className="flex gap-2 flex-wrap">
-            {(["villa", "apartment"] as PropertyCategory[]).map((c) => (
-              <FilterChip
-                key={c}
-                label={c.charAt(0).toUpperCase() + c.slice(1)}
-                active={category === c}
-                onClick={() => handleCategoryChange(c)}
-              />
-            ))}
-          </div>
-        </div>
+      {/* ── All filters in one row ── */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Property */}
+        <SectionLabel>Property</SectionLabel>
+        {(["villa", "apartment"] as PropertyCategory[]).map((c) => (
+          <FilterChip
+            key={c}
+            label={c.charAt(0).toUpperCase() + c.slice(1)}
+            active={category === c}
+            onClick={() => handleCategoryChange(c)}
+          />
+        ))}
 
-        {/* Room count */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <SectionLabel>Rooms</SectionLabel>
-          <div className="flex gap-2 flex-wrap">
-            <FilterChip
-              label="Any"
-              active={rooms === null}
-              onClick={() => setRooms(null)}
-            />
-            {roomOptions.map((r) => {
-              const isDisabled = !ALLOWED_ROOMS[category].includes(r);
-              return (
-                <FilterChip
-                  key={r}
-                  label={String(r)}
-                  active={rooms === r}
-                  disabled={isDisabled}
-                  onClick={() => setRooms(r)}
-                />
-              );
-            })}
-          </div>
-        </div>
+        <Divider />
 
-        {/* Date range */}
-        <div className="flex items-center gap-3">
-          <SectionLabel>Period</SectionLabel>
-          <div className="flex gap-2">
-            {(["1Y", "3Y", "5Y"] as DateRange[]).map((d) => (
-              <FilterChip
-                key={d}
-                label={d}
-                active={dateRange === d}
-                onClick={() => setDateRange(d)}
-              />
-            ))}
-          </div>
-        </div>
+        {/* Rooms */}
+        <SectionLabel>Rooms</SectionLabel>
+        <FilterChip
+          label="Any"
+          active={rooms === null}
+          onClick={() => setRooms(null)}
+        />
+        {ROOM_OPTIONS.map((r) => (
+          <FilterChip
+            key={r}
+            label={String(r)}
+            active={rooms === r}
+            disabled={!ALLOWED_ROOMS[category].includes(r)}
+            onClick={() => setRooms(r)}
+          />
+        ))}
+
+        <Divider />
+
+        {/* Period */}
+        <SectionLabel>Period</SectionLabel>
+        {(["1Y", "3Y", "5Y"] as DateRange[]).map((d) => (
+          <FilterChip
+            key={d}
+            label={d}
+            active={dateRange === d}
+            onClick={() => setDateRange(d)}
+          />
+        ))}
       </div>
+
+      {/* AI Insight Box */}
+      <AIInsightBox />
 
       {/* Divider */}
       <div className="h-px bg-[hsl(var(--border))]" />
 
       {/* Chart area */}
       <div className="relative">
+        {/* Subtle overlay spinner – does NOT hide the previous chart */}
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[hsl(var(--card)/0.7)] backdrop-blur-sm rounded-xl z-10">
-            <div className="flex flex-col items-center gap-2">
-              <div
-                className="w-8 h-8 rounded-full border-2 border-[hsl(var(--accent))] border-t-transparent animate-spin"
-              />
-              <span className="text-xs text-[hsl(var(--muted-foreground))]">
-                Fetching data…
-              </span>
-            </div>
+          <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-[hsl(var(--card)/0.85)] backdrop-blur-sm rounded-full px-3 py-1 shadow-sm">
+            <div className="w-3.5 h-3.5 rounded-full border-2 border-[hsl(var(--accent))] border-t-transparent animate-spin" />
+            <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
+              Updating…
+            </span>
           </div>
         )}
 
         {error && (
           <div className="flex items-center justify-center h-48 text-sm text-destructive gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z"
+              />
             </svg>
             {error}
           </div>
@@ -453,19 +532,29 @@ export default function GrowthComparisonChart() {
 
               <Line
                 type="monotone"
-                dataKey={isPriceKey}
+                dataKey={priceKey}
                 stroke={GOLD}
                 strokeWidth={2.5}
                 dot={{ r: 4, fill: GOLD, strokeWidth: 0 }}
-                activeDot={{ r: 6, fill: GOLD, stroke: "hsl(var(--card))", strokeWidth: 2 }}
+                activeDot={{
+                  r: 6,
+                  fill: GOLD,
+                  stroke: "hsl(var(--card))",
+                  strokeWidth: 2,
+                }}
               />
               <Line
                 type="monotone"
-                dataKey={isRentKey}
+                dataKey={rentKey}
                 stroke={EMERALD}
                 strokeWidth={2.5}
                 dot={{ r: 4, fill: EMERALD, strokeWidth: 0 }}
-                activeDot={{ r: 6, fill: EMERALD, stroke: "hsl(var(--card))", strokeWidth: 2 }}
+                activeDot={{
+                  r: 6,
+                  fill: EMERALD,
+                  stroke: "hsl(var(--card))",
+                  strokeWidth: 2,
+                }}
               />
             </LineChart>
           </ResponsiveContainer>

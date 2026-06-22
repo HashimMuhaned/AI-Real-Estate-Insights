@@ -10,7 +10,7 @@ import {
   boolean,
   primaryKey,
   unique,
-  numeric
+  numeric,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -40,15 +40,15 @@ export const locations = pgTable(
     level: text("level"), // community, development, phase, etc.
 
     parentLocationId: integer("parent_location_id").references(
-      () => locations.locationId
+      () => locations.locationId,
     ),
   },
   (table) => ({
     sourceUnique: uniqueIndex("locations_source_unique").on(
       table.source,
-      table.sourceLocationId
+      table.sourceLocationId,
     ),
-  })
+  }),
 );
 
 export const communityMedia = pgTable("community_media", {
@@ -78,11 +78,9 @@ export const communityProfiles = pgTable("community_profiles", {
   lifestyleSummary: text("lifestyle_summary"),
   populationEstimate: integer("population_estimate"),
 
-  createdAt: timestamp("created_at", { withTimezone: false })
-    .defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: false }).defaultNow(),
 
-  updatedAt: timestamp("updated_at", { withTimezone: false })
-    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: false }).defaultNow(),
 });
 
 export const communitySpecialClassifications = pgTable(
@@ -98,9 +96,8 @@ export const communitySpecialClassifications = pgTable(
     classificationType: text("classification_type"),
     description: text("description"),
 
-    createdAt: timestamp("created_at", { withTimezone: false })
-      .defaultNow(),
-  }
+    createdAt: timestamp("created_at", { withTimezone: false }).defaultNow(),
+  },
 );
 
 export const amenitiesCommunity = pgTable("amenities_community", {
@@ -125,7 +122,7 @@ export const communityAmenities = pgTable(
     pk: primaryKey({
       columns: [table.locationId, table.amenityId],
     }),
-  })
+  }),
 );
 
 export const roads = pgTable("roads", {
@@ -148,9 +145,8 @@ export const communityRoads = pgTable(
     pk: primaryKey({
       columns: [table.locationId, table.roadId],
     }),
-  })
+  }),
 );
-
 
 export const developers = pgTable(
   "developers",
@@ -166,9 +162,9 @@ export const developers = pgTable(
   (table) => ({
     sourceDevUnique: unique("developers_source_source_dev_id_unique").on(
       table.source,
-      table.sourceDevId
+      table.sourceDevId,
     ),
-  })
+  }),
 );
 
 export const areaCommercialMapping = pgTable("area_commercial_mapping", {
